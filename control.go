@@ -12,6 +12,8 @@ const (
 	ToolSetValue           = "set_value"
 	ToolDeleteValue        = "delete_value"
 	ToolListValues         = "list_values"
+	ToolGetEgress          = "get_egress"
+	ToolSetEgress          = "set_egress"
 )
 
 // MCPCallEvent is the event.name of the completion record logged for each MCP call, sampled or not.
@@ -89,7 +91,44 @@ type UpdateSessionRequestFor[Desired any] struct {
 	SessionRequest
 	WritePrecondition
 
-	Desired Desired `json:"desired"`
+	Desired Desired  `json:"desired"`
+	Remove  []string `description:"App names to delete from the session." json:"remove,omitempty"`
+}
+
+type EgressRequest struct {
+	App string `json:"app"`
+}
+
+type SetEgressRequest struct {
+	EgressRequest
+	WritePrecondition
+
+	Policy AppEgressPolicy `json:"policy"`
+}
+
+// AppEgressPolicy declares permitted destinations.
+type AppEgressPolicy struct {
+	Allow Egress `description:"Omitted removes the policy; [] permits nothing; destinations permit exactly those." json:"allow,omitzero"`
+}
+
+// EgressStatus reports asynchronous policy reconciliation and rollout.
+type EgressStatus struct {
+	Revision        string `json:"revision"`
+	Reconciled      bool   `json:"reconciled"`
+	RolloutComplete bool   `json:"rolloutComplete"`
+	Targets         int    `json:"targets"`
+	Pending         int    `json:"pending"`
+	Degraded        bool   `json:"degraded"`
+	Message         string `json:"message,omitempty"`
+}
+
+// EgressResponse combines the declared policy with its observed status.
+type EgressResponse struct {
+	AppEgressPolicy
+
+	Revision string       `json:"revision"`
+	App      string       `json:"app"`
+	Status   EgressStatus `json:"status"`
 }
 
 type DeleteSessionResultFor[Session any] struct {
