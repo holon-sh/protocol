@@ -24,6 +24,7 @@ type OAuthInfo struct {
 	AdminAudience     string             `json:"adminAudience"`
 	CLIClientID       string             `json:"cliClientID"`
 	AccountManagement *AccountManagement `json:"accountManagement,omitempty"`
+	PeopleManagement  bool               `json:"peopleManagement,omitempty"`
 }
 
 // AccountManagement contains provider-owned self-service pages. Omitted links
