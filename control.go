@@ -113,7 +113,6 @@ type AppEgressPolicy struct {
 
 // EgressStatus reports asynchronous policy reconciliation and rollout.
 type EgressStatus struct {
-	Revision        string `json:"revision"`
 	Reconciled      bool   `json:"reconciled"`
 	RolloutComplete bool   `json:"rolloutComplete"`
 	Targets         int    `json:"targets"`
