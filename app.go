@@ -119,7 +119,7 @@ type AppAccess struct {
 	// +nullable
 	// +kubebuilder:validation:MaxProperties=256
 	// +optional
-	Tools map[string]AccessRule `description:"Tool rules combined with server requirements." json:"tools,omitempty" maxProperties:"256"`
+	Tools map[string]AccessRule `description:"Tool rules replace the server rule." json:"tools,omitempty" maxProperties:"256"`
 }
 
 // +mapType=atomic
