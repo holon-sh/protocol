@@ -106,9 +106,9 @@ type SetEgressRequest struct {
 	Policy AppEgressPolicy `json:"policy"`
 }
 
-// AppEgressPolicy declares permitted destinations.
+// AppEgressPolicy is the installation's egress ceiling for one app.
 type AppEgressPolicy struct {
-	Allow Egress `description:"Omitted removes the policy; [] permits nothing; destinations permit exactly those." json:"allow,omitzero"`
+	Allow Egress `description:"Omitted removes this app's ceiling; destinations cap what the app may reach, together with the installation-wide ceiling." json:"allow,omitzero"`
 }
 
 // EgressStatus reports asynchronous policy reconciliation and rollout.
