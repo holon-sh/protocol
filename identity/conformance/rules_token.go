@@ -1,0 +1,197 @@
+package conformance
+
+import (
+	"cmp"
+	"context"
+	"crypto/rand"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"slices"
+	"strings"
+
+	"github.com/holon-sh/protocol/identity"
+)
+
+func uniqueAudience() string {
+	return "https://conformance-" + strings.ToLower(rand.Text()) + ".example.test/"
+}
+
+func (s *suite) checkDiscovery(ctx context.Context) error {
+	_, err := s.discover(ctx)
+	return err
+}
+
+func (s *suite) checkClientCredentials(ctx context.Context) error {
+	resource := s.cfg.Resource
+	issued, err := s.clientCredentials(ctx, resource.Audience, append(slices.Clone(resource.Scopes), unregisteredScope)...)
+	if err != nil {
+		return err
+	}
+	if err := onlyRegistered(issued.Scope, resource.Scopes); err != nil {
+		return fmt.Errorf("token response: %w", err)
+	}
+	result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.ServiceAccountClientID, resource.Audience)
+	if err != nil {
+		return err
+	}
+	if err := onlyRegistered(result.Scope, resource.Scopes); err != nil {
+		return fmt.Errorf("introspection: %w", err)
+	}
+	return nil
+}
+
+func (s *suite) checkIntrospection(ctx context.Context) error {
+	issued, err := s.clientCredentials(ctx, s.cfg.Resource.Audience)
+	if err != nil {
+		return err
+	}
+	for _, caller := range []struct{ name, credential string }{{"no bearer", ""}, {"a wrong bearer", s.cfg.Bearer + "x"}} {
+		_, err := s.introspect(ctx, caller.credential, issued.AccessToken)
+		var refused *rejection
+		switch {
+		case err == nil:
+			return fmt.Errorf("introspection with %s succeeded, want status 401", caller.name)
+		case !errors.As(err, &refused) || refused.Status != http.StatusUnauthorized || !strings.HasPrefix(refused.Challenge, "Bearer"):
+			return fmt.Errorf("introspection with %s: %w, want status 401 with a Bearer challenge", caller.name, err)
+		}
+	}
+	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.ServiceAccountClientID, s.cfg.Resource.Audience); err != nil {
+		return err
+	}
+	return s.wantInactive(ctx, rand.Text(), "unknown to the issuer")
+}
+
+func (s *suite) checkUnregisteredAudience(ctx context.Context) error {
+	issued, err := s.clientCredentials(ctx, uniqueAudience())
+	var refused *rejection
+	switch {
+	case errors.As(err, &refused) && refused.Code == "invalid_target":
+	case err != nil:
+		return err
+	default:
+		if err := s.wantInactive(ctx, issued.AccessToken, "minted for an audience never registered"); err != nil {
+			return err
+		}
+	}
+	spec := throwawaySpec()
+	if err := s.registrations.Ensure(ctx, spec); err != nil {
+		return fmt.Errorf("register %s: %w", spec.Audience, err)
+	}
+	defer func() { _ = s.registrations.Delete(ctx, spec) }()
+	issued, err = s.clientCredentials(ctx, spec.Audience)
+	if err != nil {
+		return err
+	}
+	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.ServiceAccountClientID, spec.Audience); err != nil {
+		return err
+	}
+	if err := s.registrations.Delete(ctx, spec); err != nil {
+		return fmt.Errorf("delete %s: %w", spec.Audience, err)
+	}
+	if err := s.wantInactive(ctx, issued.AccessToken, "minted before its resource was deleted"); err != nil {
+		return err
+	}
+	if err := s.registrations.Ensure(ctx, spec); err != nil {
+		return fmt.Errorf("register %s again: %w", spec.Audience, err)
+	}
+	return s.wantInactive(ctx, issued.AccessToken, "minted before its resource was registered again")
+}
+
+func throwawaySpec() identity.Spec {
+	return identity.Spec{Kind: "ConformanceResource", UID: strings.ToLower(rand.Text()), Audience: uniqueAudience(), Scopes: []string{"conformance:read"}}
+}
+
+func wantRefused(action string, err error, code string) error {
+	var refused *rejection
+	switch {
+	case errors.As(err, &refused) && refused.Code == code:
+		return nil
+	case err == nil:
+		return fmt.Errorf("%s succeeded, want %s", action, code)
+	}
+	return fmt.Errorf("%s: %w, want %s", action, err, code)
+}
+
+func (s *suite) resourceScope() string {
+	return strings.Join(s.cfg.Resource.Scopes, " ")
+}
+
+func (s *suite) checkBrowserClient(ctx context.Context) error {
+	first, err := s.authorize(ctx, s.resourceScope(), SignInRequest{})
+	if err != nil {
+		return err
+	}
+	first.verifier = rand.Text() + rand.Text()
+	_, err = s.redeem(ctx, first)
+	if err := wantRefused("a wrong code_verifier", err, "invalid_grant"); err != nil {
+		return err
+	}
+	issued, err := s.browserToken(ctx, s.resourceScope())
+	if err != nil {
+		return err
+	}
+	_, err = s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, s.cfg.Resource.Audience)
+	return err
+}
+
+// checkRefreshResource expects the invalid_target code of [RFC 8707 §2] from a refresh naming another resource.
+//
+// [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
+func (s *suite) checkRefreshResource(ctx context.Context) error {
+	issued, err := s.browserToken(ctx, s.resourceScope())
+	if err != nil {
+		return err
+	}
+	if issued.RefreshToken == "" {
+		return errors.New("no refresh token was issued")
+	}
+	resource := s.cfg.Resource.Audience
+	refreshed, err := s.exchange(ctx, s.browserClient(), url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource},
+	})
+	if err != nil {
+		return fmt.Errorf("refresh for the same resource: %w", err)
+	}
+	if _, err := s.wantActive(ctx, refreshed.AccessToken, s.cfg.BrowserClientID, resource); err != nil {
+		return err
+	}
+	other := throwawaySpec()
+	if err := s.registrations.Ensure(ctx, other); err != nil {
+		return fmt.Errorf("register %s: %w", other.Audience, err)
+	}
+	defer func() { _ = s.registrations.Delete(ctx, other) }()
+	_, err = s.exchange(ctx, s.browserClient(), url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {cmp.Or(refreshed.RefreshToken, issued.RefreshToken)}, "resource": {other.Audience},
+	})
+	return wantRefused("refresh for another resource", err, "invalid_target")
+}
+
+func (s *suite) checkIssuedScope(ctx context.Context) error {
+	issued, err := s.browserToken(ctx, "openid "+s.resourceScope()+" "+unregisteredScope)
+	if err != nil {
+		return err
+	}
+	return wantIssuedScope(issued.Scope, s.cfg.Resource.Scopes)
+}
+
+// wantIssuedScope holds the scope response parameter to [RFC 6749 §5.1]: the request named a scope nobody can
+// hold, so the issued scope differs and the parameter is required.
+//
+// [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
+func wantIssuedScope(scope string, registered []string) error {
+	if scope == "" {
+		return errors.New("the issued scope differs from the request but the token response has no scope parameter")
+	}
+	if err := onlyRegistered(scope, registered); err != nil {
+		return err
+	}
+	granted := strings.Fields(scope)
+	for _, want := range append([]string{"openid"}, registered...) {
+		if !slices.Contains(granted, want) {
+			return fmt.Errorf("scope %q was requested and held but not issued in %q", want, scope)
+		}
+	}
+	return nil
+}
