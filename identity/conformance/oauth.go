@@ -174,7 +174,10 @@ func (s *suite) browserClient() oauthClient {
 //
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
 func (s *suite) clientCredentials(ctx context.Context, resource string, scopes ...string) (token, error) {
-	form := url.Values{"grant_type": {"client_credentials"}, "resource": {resource}}
+	form := url.Values{"grant_type": {"client_credentials"}}
+	if resource != "" {
+		form.Set("resource", resource)
+	}
 	if len(scopes) != 0 {
 		form.Set("scope", strings.Join(scopes, " "))
 	}

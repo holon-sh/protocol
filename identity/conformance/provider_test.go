@@ -45,6 +45,7 @@ type faults struct {
 	leakScope                                            bool
 	openIntrospection, activeUnknownToken                bool
 	mintUnregistered, activeAfterDelete                  bool
+	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
 	noPendingSetup, duplicateUserName, deleteKeeps       bool
 	patchIgnored, membersIgnored                         bool
@@ -218,6 +219,9 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resource := r.PostForm.Get("resource")
+	if resource == "" && p.faults.noResourceDefaults {
+		resource = testResource
+	}
 	switch r.PostForm.Get("grant_type") {
 	case "client_credentials":
 		p.clientCredentials(w, client, resource, r.PostForm.Get("scope"))
