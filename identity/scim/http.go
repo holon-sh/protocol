@@ -118,7 +118,12 @@ func createGroup(w http.ResponseWriter, r *http.Request, backend Backend) {
 	if !read(w, r, &request, &request.Schemas, schemaGroup) {
 		return
 	}
-	created, err := backend.CreateGroup(r.Context(), Group{ExternalID: request.ExternalID})
+	group := Group{ExternalID: request.ExternalID}
+	if _, err := group.PermissionSet(); err != nil {
+		failWith(w, err)
+		return
+	}
+	created, err := backend.CreateGroup(r.Context(), group)
 	if err != nil {
 		failWith(w, err)
 		return

@@ -296,6 +296,7 @@ func TestRequestsAreValidatedBeforeTheBackend(t *testing.T) {
 		{"create with an unknown attribute", "POST", "/scim/v2/Users", `{` + userSchema + `,"userName":"a","nickName":"b"}`, "invalidSyntax"},
 		{"create over the body limit", "POST", "/scim/v2/Users", `{` + userSchema + `,"userName":"` + strings.Repeat("a", maxBody) + `"}`, "invalidSyntax"},
 		{"create without a userName", "POST", "/scim/v2/Users", `{` + userSchema + `}`, "invalidValue"},
+		{"create group without a set", "POST", "/scim/v2/Groups", `{` + groupSchema + `,"externalId":"install"}`, "invalidValue"},
 		{"patch without operations", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[]}`, "invalidSyntax"},
 		{"patch with an unknown op", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[{"op":"move","path":"active","value":true}]}`, "invalidSyntax"},
 		{"remove without a path", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[{"op":"remove"}]}`, "noTarget"},

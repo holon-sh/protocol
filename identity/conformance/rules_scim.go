@@ -181,7 +181,7 @@ func (s *suite) checkSCIMListGroups(ctx context.Context) error {
 			}
 			return nil
 		}
-		if len(page.Resources) == 0 {
+		if start+maxCount > page.TotalResults {
 			return fmt.Errorf("the list does not include %s", person.ID)
 		}
 	}
@@ -208,7 +208,7 @@ func (s *suite) checkSCIMCreateGroup(ctx context.Context) error {
 		if slices.ContainsFunc(page.Resources, func(group scim.Group) bool { return group.ID == created.ID }) {
 			break
 		}
-		if len(page.Resources) == 0 {
+		if start+maxCount > page.TotalResults {
 			return fmt.Errorf("the list does not include the created group %s", created.ID)
 		}
 	}

@@ -54,6 +54,7 @@ type faults struct {
 	listDropsGroups                                      bool
 	duplicateGroup                                       bool
 	listDropsCreatedGroups                               bool
+	startIgnored                                         bool
 	anyVerifier                                          bool
 	deviceApprovedEarly, deviceNoRefresh                 bool
 	noCompleteVerificationURI, slowDownOnce              bool
@@ -575,6 +576,9 @@ func (p *provider) ListGroups(_ context.Context, _ scim.Filter, start, count int
 	if !p.faults.listDropsCreatedGroups {
 		groups = append(groups, p.groups...)
 	}
+	if p.faults.startIgnored {
+		start = 1
+	}
 	from := min(start-1, len(groups))
 	return scim.Page[scim.Group]{TotalResults: len(groups), Resources: groups[from:min(from+count, len(groups))]}, nil
 }
@@ -582,10 +586,7 @@ func (p *provider) ListGroups(_ context.Context, _ scim.Filter, start, count int
 func (p *provider) CreateGroup(_ context.Context, group scim.Group) (scim.Group, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	set, err := group.PermissionSet()
-	if err != nil {
-		return scim.Group{}, err
-	}
+	set, _ := group.PermissionSet()
 	if !p.faults.duplicateGroup {
 		for _, existing := range p.groups {
 			if existing.ExternalID == group.ExternalID {

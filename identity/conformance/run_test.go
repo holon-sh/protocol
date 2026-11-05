@@ -56,6 +56,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"duplicate userName accepted", (*suite).checkSCIMCreate, faults{duplicateUserName: true}, "one userName"},
 		{"group created twice", (*suite).checkSCIMCreateGroup, faults{duplicateGroup: true}, "one externalId succeeded"},
 		{"created group unlisted", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true}, "does not include"},
+		{"created group unlisted and start ignored", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true, startIgnored: true}, "does not include"},
 		{"patch ignored", (*suite).checkSCIMPatch, faults{patchIgnored: true}, "replace active"},
 		{"members ignored", (*suite).checkSCIMPatch, faults{membersIgnored: true}, "membership"},
 		{"delete keeps the user", (*suite).checkSCIMDelete, faults{deleteKeeps: true}, "after delete"},

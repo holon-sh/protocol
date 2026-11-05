@@ -185,9 +185,8 @@ type Capabilities struct {
 // 1-based start index and a count of at most 200 ([RFC 7644 §3.4.2.4]). ListUsers answers ErrFilter to a Filter it
 // cannot evaluate, and ListGroups only sees an empty Filter, because its fields are all User attributes;
 // CreateUser is [RFC 7644 §3.3] and answers ErrConflict to a taken userName; CreateGroup is [RFC 7644 §3.3] and
-// answers ErrConflict to a taken ExternalID and ErrInvalid to one that names no permission set; PatchUser and
-// PatchGroup are [RFC 7644 §3.5.2] and answer ErrInvalid to an operation they do not implement; DeleteUser is
-// [RFC 7644 §3.6]. An unknown id is ErrNotFound.
+// answers ErrConflict to a taken ExternalID; PatchUser and PatchGroup are [RFC 7644 §3.5.2] and answer ErrInvalid to
+// an operation they do not implement; DeleteUser is [RFC 7644 §3.6]. An unknown id is ErrNotFound.
 //
 // [RFC 7644 §3.4.2.4]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2.4
 // [RFC 7644 §3.3]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.3
