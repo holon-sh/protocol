@@ -46,6 +46,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"no bearer accepted", (*suite).checkIntrospection, faults{openIntrospection: true}, "no bearer"},
 		{"unknown token active", (*suite).checkIntrospection, faults{activeUnknownToken: true}, "unknown to the issuer"},
 		{"never-registered audience active", (*suite).checkUnregisteredAudience, faults{mintUnregistered: true, activeAfterDelete: true}, "never registered"},
+		{"no resource active", (*suite).checkUnregisteredAudience, faults{noResourceDefaults: true}, "for no resource"},
 		{"active after deletion", (*suite).checkUnregisteredAudience, faults{activeAfterDelete: true}, "before its resource was deleted"},
 		{"count ignored", (*suite).checkSCIMList, faults{countIgnored: true}, "first page"},
 		{"zero count returns resources", (*suite).checkSCIMList, faults{zeroCountReturnsAll: true}, "count 0"},

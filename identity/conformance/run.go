@@ -82,7 +82,7 @@ var rules = []rule{
 	{name: "discovery serves the required endpoints", check: (*suite).checkDiscovery},
 	{name: "client credentials token carries the resource and only registered scopes", check: (*suite).checkClientCredentials},
 	{name: "introspection answers RFC 7662 fields to the bearer", check: (*suite).checkIntrospection},
-	{name: "token for an unregistered audience is inactive", check: (*suite).checkUnregisteredAudience},
+	{name: "token for no resource or an unregistered audience is inactive", check: (*suite).checkUnregisteredAudience},
 	{name: "SCIM list", check: (*suite).checkSCIMList},
 	{name: "SCIM list answers each person's groups", check: (*suite).checkSCIMListGroups},
 	{name: "SCIM filter", check: (*suite).checkSCIMFilter},

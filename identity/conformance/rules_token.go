@@ -63,24 +63,31 @@ func (s *suite) checkIntrospection(ctx context.Context) error {
 	return s.wantInactive(ctx, rand.Text(), "unknown to the issuer")
 }
 
+// wantUnusable requests a token for resource, which no registration holds, and expects the invalid_target code of
+// [RFC 8707 §2] or a token nothing accepts.
+//
+// [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
+func (s *suite) wantUnusable(ctx context.Context, resource, description string) error {
+	issued, err := s.clientCredentials(ctx, resource)
+	if err != nil {
+		return wantRefused(description, err, "invalid_target")
+	}
+	return s.wantInactive(ctx, issued.AccessToken, description)
+}
+
 func (s *suite) checkUnregisteredAudience(ctx context.Context) error {
-	issued, err := s.clientCredentials(ctx, uniqueAudience())
-	var refused *rejection
-	switch {
-	case errors.As(err, &refused) && refused.Code == "invalid_target":
-	case err != nil:
+	if err := s.wantUnusable(ctx, uniqueAudience(), "minted for an audience never registered"); err != nil {
 		return err
-	default:
-		if err := s.wantInactive(ctx, issued.AccessToken, "minted for an audience never registered"); err != nil {
-			return err
-		}
+	}
+	if err := s.wantUnusable(ctx, "", "minted for no resource"); err != nil {
+		return err
 	}
 	spec := throwawaySpec()
 	if err := s.registrations.Ensure(ctx, spec); err != nil {
 		return fmt.Errorf("register %s: %w", spec.Audience, err)
 	}
 	defer func() { _ = s.registrations.Delete(ctx, spec) }()
-	issued, err = s.clientCredentials(ctx, spec.Audience)
+	issued, err := s.clientCredentials(ctx, spec.Audience)
 	if err != nil {
 		return err
 	}

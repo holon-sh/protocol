@@ -7,8 +7,9 @@
 //     [RFC 8628 §3], with offline_access. A service account uses client credentials, [RFC 6749 §4.4]; the
 //     conformance suite is given one.
 //   - Resource. Every authorization, device and token request carries exactly one resource parameter,
-//     [RFC 8707 §2]. The access token's aud is that resource and nothing else, [RFC 8707 §2.2]. A refresh naming
-//     a different resource is refused with invalid_target, [RFC 8707 §2].
+//     [RFC 8707 §2]. The access token's aud is that resource and nothing else, [RFC 8707 §2.2]. A token requested
+//     for no resource or an unregistered one is inactive or refused with invalid_target, and a refresh naming a
+//     different resource is refused with invalid_target, [RFC 8707 §2].
 //   - Scope. The issued scope is the requested scopes limited to those the resource registered and the subject
 //     holds through a permission set. When it differs from the request, the token response carries the scope
 //     parameter, [RFC 6749 §5.1]. Protocol scopes (openid, profile, email, offline_access) pass through
