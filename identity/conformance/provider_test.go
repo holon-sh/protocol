@@ -35,6 +35,7 @@ const (
 	browserRedirect = "https://holon.example.test/.well-known/holon/callback"
 	testGroup       = "group-1"
 	callerPerson    = "caller"
+	leakedScope     = "conformance:unregistered"
 )
 
 var (
@@ -49,7 +50,7 @@ var (
 
 type faults struct {
 	wrongIssuer                                          bool
-	leakScope                                            bool
+	leakScope, scopeOnlyWhenNamed                        bool
 	openIntrospection, activeUnknownToken                bool
 	wrongClientID, wrongAudience                         bool
 	pairwiseSubject                                      bool
@@ -213,11 +214,12 @@ func (p *provider) issue(w http.ResponseWriter, r record, refresh bool) {
 }
 
 func (p *provider) limit(audience, requested string) string {
-	var granted []string
-	for scope := range strings.FieldsSeq(requested) {
-		if slices.Contains(p.scopes[audience], scope) || slices.Contains(protocolScopes, scope) || p.faults.leakScope {
-			granted = append(granted, scope)
-		}
+	granted := slices.DeleteFunc(strings.Fields(requested), func(scope string) bool { return !slices.Contains(protocolScopes, scope) })
+	if !p.faults.scopeOnlyWhenNamed {
+		granted = append(granted, p.scopes[audience]...)
+	}
+	if p.faults.leakScope {
+		granted = append(granted, leakedScope)
 	}
 	return strings.Join(granted, " ")
 }
@@ -240,7 +242,7 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.PostForm.Get("grant_type") {
 	case "client_credentials":
-		p.clientCredentials(w, client, resource, r.PostForm.Get("scope"))
+		p.clientCredentials(w, client, resource)
 	case "authorization_code":
 		p.redeemCode(w, client, resource, r.PostForm)
 	case "refresh_token":
@@ -252,13 +254,13 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) clientCredentials(w http.ResponseWriter, client, resource, scope string) {
+func (p *provider) clientCredentials(w http.ResponseWriter, client, resource string) {
 	generation, registered := p.generations[resource]
 	if !registered && !p.faults.mintUnregistered {
 		refuse(w, "invalid_target")
 		return
 	}
-	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, scope), generation: generation}, false)
+	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, ""), generation: generation}, false)
 }
 
 func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, form url.Values) {

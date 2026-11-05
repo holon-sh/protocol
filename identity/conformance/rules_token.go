@@ -26,7 +26,7 @@ func (s *suite) checkDiscovery(ctx context.Context) error {
 
 func (s *suite) checkClientCredentials(ctx context.Context) error {
 	resource := s.cfg.Resource
-	issued, err := s.clientCredentials(ctx, resource.Audience, append(slices.Clone(resource.Scopes), unregisteredScope)...)
+	issued, err := s.clientCredentials(ctx, resource.Audience)
 	if err != nil {
 		return err
 	}
@@ -126,12 +126,8 @@ func wantRefused(action string, err error, code string) error {
 	return fmt.Errorf("%s: %w, want %s", action, err, code)
 }
 
-func (s *suite) resourceScope() string {
-	return strings.Join(s.cfg.Resource.Scopes, " ")
-}
-
 func (s *suite) checkBrowserClient(ctx context.Context) error {
-	first, err := s.authorize(ctx, s.resourceScope(), SignInRequest{})
+	first, err := s.authorize(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -140,7 +136,7 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 	if err := wantRefused("a wrong code_verifier", err, "invalid_grant"); err != nil {
 		return err
 	}
-	issued, err := s.browserToken(ctx, s.resourceScope())
+	issued, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -151,7 +147,7 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 // checkRefreshResource holds the refreshes of the browser client's online grant and the cli client's offline grant
 // to the same rules.
 func (s *suite) checkRefreshResource(ctx context.Context) error {
-	browser, err := s.browserToken(ctx, s.resourceScope())
+	browser, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -229,7 +225,7 @@ func (s *suite) checkSignOut(ctx context.Context) error {
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
-	issued, err := s.browserToken(ctx, "openid "+s.resourceScope())
+	issued, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -272,28 +268,25 @@ func (s *suite) endSession(ctx context.Context, hint, redirectURI string) (int, 
 }
 
 func (s *suite) checkIssuedScope(ctx context.Context) error {
-	issued, err := s.browserToken(ctx, "openid "+s.resourceScope()+" "+unregisteredScope)
+	issued, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}
 	return wantIssuedScope(issued.Scope, s.cfg.Resource.Scopes)
 }
 
-// wantIssuedScope holds the scope response parameter to [RFC 6749 §5.1]: the request named a scope nobody can
-// hold, so the issued scope differs and the parameter is required.
+// wantIssuedScope holds the scope response parameter to [RFC 6749 §5.1]: the request named no resource scope, so the
+// issued scope differs and the parameter is required.
 //
 // [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
 func wantIssuedScope(scope string, registered []string) error {
-	if scope == "" {
-		return errors.New("the issued scope differs from the request but the token response has no scope parameter")
-	}
 	if err := onlyRegistered(scope, registered); err != nil {
 		return err
 	}
 	granted := strings.Fields(scope)
 	for _, want := range append([]string{"openid"}, registered...) {
 		if !slices.Contains(granted, want) {
-			return fmt.Errorf("scope %q was requested and held but not issued in %q", want, scope)
+			return fmt.Errorf("scope %q is held but not issued in %q", want, scope)
 		}
 	}
 	return nil
