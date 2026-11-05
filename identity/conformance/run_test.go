@@ -67,6 +67,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"device token issued before sign-in", (*suite).checkCLIClient, faults{deviceApprovedEarly: true}, "before sign-in"},
 		{"no refresh token with offline_access", (*suite).checkCLIClient, faults{deviceNoRefresh: true}, "no refresh token"},
 		{"refresh answers invalid_grant", (*suite).checkRefreshResource, faults{refreshInvalidGrant: true}, "invalid_grant"},
+		{"second cli refresh loses the audience", (*suite).checkRefreshResource, faults{cliRefreshLosesAudience: true}, "cli client: access token of refresh 2"},
+		{"cli refresh serves another resource", (*suite).checkRefreshResource, faults{cliRefreshAnyResource: true}, "cli client: refresh for another resource succeeded"},
 		{"revoked refresh token still refreshes", (*suite).checkCLIClient, faults{revocationIgnored: true}, "a revoked refresh token"},
 		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
 		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, unregisteredScope},

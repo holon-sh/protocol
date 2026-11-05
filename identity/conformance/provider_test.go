@@ -60,6 +60,7 @@ type faults struct {
 	noCompleteVerificationURI, slowDownOnce              bool
 	refreshInvalidGrant, revocationIgnored               bool
 	refreshRefused                                       bool
+	cliRefreshLosesAudience, cliRefreshAnyResource       bool
 	samePasswordAccepted, nameNotCollected, stillPending bool
 	linkReusable, linkNeverExpires                       bool
 }
@@ -67,6 +68,7 @@ type faults struct {
 type record struct {
 	client, subject, audience, scope string
 	generation                       int
+	rotated                          bool
 }
 
 type codeRecord struct {
@@ -265,7 +267,7 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		refuse(w, "invalid_grant")
 		return
 	}
-	if resource != previous.audience {
+	if resource != previous.audience && !(client == cliClient && p.faults.cliRefreshAnyResource) {
 		code := "invalid_target"
 		if p.faults.refreshInvalidGrant {
 			code = "invalid_grant"
@@ -273,6 +275,10 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		refuse(w, code)
 		return
 	}
+	if client == cliClient && previous.rotated && p.faults.cliRefreshLosesAudience {
+		previous.audience = ""
+	}
+	previous.rotated = true
 	p.issue(w, previous, true)
 }
 

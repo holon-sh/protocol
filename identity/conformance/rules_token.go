@@ -143,34 +143,57 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 	return err
 }
 
-// checkRefreshResource expects the invalid_target code of [RFC 8707 §2] from a refresh naming another resource.
-//
-// [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
+// checkRefreshResource holds the refreshes of the browser client's online grant and the cli client's offline grant
+// to the same rules.
 func (s *suite) checkRefreshResource(ctx context.Context) error {
-	issued, err := s.browserToken(ctx, s.resourceScope())
+	browser, err := s.browserToken(ctx, s.resourceScope())
 	if err != nil {
 		return err
 	}
-	if issued.RefreshToken == "" {
+	if err := s.wantRefreshesKeepResource(ctx, s.browserClient(), browser.RefreshToken); err != nil {
+		return fmt.Errorf("browser client: %w", err)
+	}
+	cli, err := s.deviceToken(ctx)
+	if err != nil {
+		return err
+	}
+	if err := s.wantRefreshesKeepResource(ctx, oauthClient{id: s.cfg.CLIClientID}, cli.RefreshToken); err != nil {
+		return fmt.Errorf("cli client: %w", err)
+	}
+	return nil
+}
+
+// wantRefreshesKeepResource refreshes twice, because an issuer can lose the resource from the refresh token it
+// rotates to and only the next access token shows it, and holds each access token to the audience of
+// [RFC 8707 §2.2]. It then expects the invalid_target code of [RFC 8707 §2] from a refresh naming another resource.
+// An issuer may count that refusal as a use of the token, so nothing can follow it.
+//
+// [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
+// [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
+func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClient, latest string) error {
+	if latest == "" {
 		return errors.New("no refresh token was issued")
 	}
 	resource := s.cfg.Resource.Audience
-	refreshed, err := s.exchange(ctx, s.browserClient(), url.Values{
-		"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource},
-	})
-	if err != nil {
-		return fmt.Errorf("refresh for the same resource: %w", err)
-	}
-	if _, err := s.wantActive(ctx, refreshed.AccessToken, s.cfg.BrowserClientID, resource); err != nil {
-		return err
+	for attempt := range 2 {
+		refreshed, err := s.exchange(ctx, client, url.Values{
+			"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {resource},
+		})
+		if err != nil {
+			return fmt.Errorf("refresh %d for the same resource: %w", attempt+1, err)
+		}
+		if _, err := s.wantActive(ctx, refreshed.AccessToken, client.id, resource); err != nil {
+			return fmt.Errorf("access token of refresh %d: %w", attempt+1, err)
+		}
+		latest = cmp.Or(refreshed.RefreshToken, latest)
 	}
 	other := throwawaySpec()
 	if err := s.registrations.Ensure(ctx, other); err != nil {
 		return fmt.Errorf("register %s: %w", other.Audience, err)
 	}
 	defer func() { _ = s.registrations.Delete(ctx, other) }()
-	_, err = s.exchange(ctx, s.browserClient(), url.Values{
-		"grant_type": {"refresh_token"}, "refresh_token": {cmp.Or(refreshed.RefreshToken, issued.RefreshToken)}, "resource": {other.Audience},
+	_, err := s.exchange(ctx, client, url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {other.Audience},
 	})
 	return wantRefused("refresh for another resource", err, "invalid_target")
 }
