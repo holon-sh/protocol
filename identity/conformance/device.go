@@ -45,8 +45,12 @@ func (d deviceAuthorization) validate() error {
 
 // checkCLIClient drives the device authorization grant of [RFC 8628 §3] as the public cli client, with the
 // resource parameter of [RFC 8707 §2] on both the device request and the token poll, and with offline_access,
-// which must yield a refresh token.
+// which must yield a refresh token. It then refreshes, so that a refusal below can only come from revocation,
+// revokes the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of [RFC 6749 §5.2]
+// from using it.
 //
+// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
+// [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 func (s *suite) checkCLIClient(ctx context.Context) error {
@@ -80,8 +84,22 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if issued.RefreshToken == "" {
 		return errors.New("the device grant with offline_access issued no refresh token")
 	}
-	_, err = s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource)
-	return err
+	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource); err != nil {
+		return err
+	}
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
+	refreshed, err := s.exchange(ctx, client, refresh)
+	if err != nil {
+		return fmt.Errorf("refresh before revocation: %w", err)
+	}
+	latest := cmp.Or(refreshed.RefreshToken, issued.RefreshToken)
+	revocation := url.Values{"token": {latest}, "token_type_hint": {"refresh_token"}}
+	if err := s.post(ctx, document.RevocationEndpoint, client, revocation, nil); err != nil {
+		return fmt.Errorf("revocation request: %w", err)
+	}
+	refresh.Set("refresh_token", latest)
+	_, err = s.exchange(ctx, client, refresh)
+	return wantRefused("a revoked refresh token", err, "invalid_grant")
 }
 
 // pollDevice repeats the request of [RFC 8628 §3.4], at the interval of [RFC 8628 §3.2] and backing off as

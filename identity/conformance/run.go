@@ -92,7 +92,7 @@ var rules = []rule{
 	{name: "SCIM delete", check: (*suite).checkSCIMDelete},
 	{name: "invitation returns a result", check: (*suite).checkInvitation},
 	{name: "browser client uses the authorization code grant with PKCE S256", browser: true, check: (*suite).checkBrowserClient},
-	{name: "cli client is public and uses the device authorization grant with offline_access", browser: true, check: (*suite).checkCLIClient},
+	{name: "cli client is public, uses the device authorization grant with offline_access and revokes its refresh token", browser: true, check: (*suite).checkCLIClient},
 	{name: "refresh naming another resource is invalid_target", browser: true, check: (*suite).checkRefreshResource},
 	{name: "issued scope is limited and reported in the scope parameter", browser: true, check: (*suite).checkIssuedScope},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},

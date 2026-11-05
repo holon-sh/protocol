@@ -66,6 +66,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"device token issued before sign-in", (*suite).checkCLIClient, faults{deviceApprovedEarly: true}, "before sign-in"},
 		{"no refresh token with offline_access", (*suite).checkCLIClient, faults{deviceNoRefresh: true}, "no refresh token"},
 		{"refresh answers invalid_grant", (*suite).checkRefreshResource, faults{refreshInvalidGrant: true}, "invalid_grant"},
+		{"revoked refresh token still refreshes", (*suite).checkCLIClient, faults{revocationIgnored: true}, "a revoked refresh token"},
+		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
 		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, unregisteredScope},
 		{"same password accepted", (*suite).checkTemporaryPassword, faults{samePasswordAccepted: true}, "accepted the temporary password"},
 		{"name not collected", (*suite).checkTemporaryPassword, faults{nameNotCollected: true}, "name"},
@@ -186,7 +188,7 @@ func TestPKCEChallengeMatchesTheRFCVector(t *testing.T) {
 func TestDiscoveryValidate(t *testing.T) {
 	valid := discovery{
 		Issuer: "https://issuer.example", AuthorizationEndpoint: "https://issuer.example/a", DeviceAuthorizationEndpoint: "https://issuer.example/d",
-		TokenEndpoint: "https://issuer.example/t", EndSessionEndpoint: "https://issuer.example/e", JWKSURI: "https://issuer.example/k",
+		TokenEndpoint: "https://issuer.example/t", RevocationEndpoint: "https://issuer.example/r", EndSessionEndpoint: "https://issuer.example/e", JWKSURI: "https://issuer.example/k",
 		CodeChallengeMethods: []string{"plain", "S256"},
 	}
 	if err := valid.validate("https://issuer.example"); err != nil {
@@ -196,6 +198,7 @@ func TestDiscoveryValidate(t *testing.T) {
 		"no authorization":       func(d *discovery) { d.AuthorizationEndpoint = "" },
 		"no device":              func(d *discovery) { d.DeviceAuthorizationEndpoint = "" },
 		"no token":               func(d *discovery) { d.TokenEndpoint = "" },
+		"no revocation":          func(d *discovery) { d.RevocationEndpoint = "" },
 		"no end session":         func(d *discovery) { d.EndSessionEndpoint = "" },
 		"no jwks":                func(d *discovery) { d.JWKSURI = "" },
 		"plain HTTP token":       func(d *discovery) { d.TokenEndpoint = "http://issuer.example/t" },

@@ -57,7 +57,8 @@ type faults struct {
 	anyVerifier                                          bool
 	deviceApprovedEarly, deviceNoRefresh                 bool
 	noCompleteVerificationURI, slowDownOnce              bool
-	refreshInvalidGrant                                  bool
+	refreshInvalidGrant, revocationIgnored               bool
+	refreshRefused                                       bool
 	samePasswordAccepted, nameNotCollected, stillPending bool
 	linkReusable, linkNeverExpires                       bool
 }
@@ -126,6 +127,7 @@ func newProvider(t *testing.T, f faults) *provider {
 	issuer.HandleFunc("GET /.well-known/openid-configuration", p.discovery)
 	issuer.HandleFunc("POST /token", p.token)
 	issuer.HandleFunc("POST /device", p.deviceAuthorize)
+	issuer.HandleFunc("POST /revoke", p.revoke)
 	p.issuer = httptest.NewTLSServer(issuer)
 	t.Cleanup(p.issuer.Close)
 	adapter := http.NewServeMux()
@@ -168,7 +170,7 @@ func (p *provider) discovery(w http.ResponseWriter, _ *http.Request) {
 	base := p.issuer.URL
 	document := discovery{
 		Issuer: base, AuthorizationEndpoint: base + "/authorize", DeviceAuthorizationEndpoint: base + "/device", TokenEndpoint: base + "/token",
-		EndSessionEndpoint: base + "/logout", JWKSURI: base + "/keys", CodeChallengeMethods: []string{"S256"},
+		RevocationEndpoint: base + "/revoke", EndSessionEndpoint: base + "/logout", JWKSURI: base + "/keys", CodeChallengeMethods: []string{"S256"},
 		TokenEndpointAuth: []string{"client_secret_basic"},
 	}
 	if p.faults.wrongIssuer {
@@ -255,7 +257,7 @@ func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, fo
 
 func (p *provider) refresh(w http.ResponseWriter, client, resource, value string) {
 	previous, ok := p.refreshes[value]
-	if !ok || previous.client != client {
+	if !ok || previous.client != client || p.faults.refreshRefused {
 		refuse(w, "invalid_grant")
 		return
 	}
@@ -268,6 +270,19 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		return
 	}
 	p.issue(w, previous, true)
+}
+
+func (p *provider) revoke(w http.ResponseWriter, r *http.Request) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_ = r.ParseForm()
+	if r.PostForm.Get("client_id") != cliClient {
+		refuse(w, "invalid_client")
+		return
+	}
+	if !p.faults.revocationIgnored {
+		delete(p.refreshes, r.PostForm.Get("token"))
+	}
 }
 
 func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
