@@ -85,6 +85,15 @@ func (c *Client) ListGroups(ctx context.Context, filter Filter, start, count int
 	return listResources[Group](ctx, c, "/Groups", filter, start, count)
 }
 
+// CreateGroup is [RFC 7644 §3.3].
+//
+// [RFC 7644 §3.3]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.3
+func (c *Client) CreateGroup(ctx context.Context, group Group) (Group, error) {
+	var created Group
+	err := c.call(ctx, http.MethodPost, "/Groups", groupResource{Group: group, Schemas: []string{schemaGroup}}, http.StatusCreated, &created)
+	return created, err
+}
+
 // PatchGroup is [RFC 7644 §3.5.2].
 //
 // [RFC 7644 §3.5.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.5.2

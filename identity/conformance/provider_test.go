@@ -52,6 +52,8 @@ type faults struct {
 	noMail, sentWithoutCapability, inviteNewUserEachTime bool
 	inviteDropsGroups                                    bool
 	listDropsGroups                                      bool
+	duplicateGroup                                       bool
+	listDropsCreatedGroups                               bool
 	anyVerifier                                          bool
 	deviceApprovedEarly, deviceNoRefresh                 bool
 	noCompleteVerificationURI, slowDownOnce              bool
@@ -101,6 +103,7 @@ type provider struct {
 	devices     map[string]*deviceRecord
 	slowDowns   int
 	users       map[string]*scim.User
+	groups      []scim.Group
 	members     map[string]bool
 	invites     map[string]*fakeInvite
 }
@@ -565,9 +568,34 @@ func (p *provider) DeleteUser(_ context.Context, id string) error {
 	return nil
 }
 
-func (p *provider) ListGroups(context.Context, scim.Filter, int, int) (scim.Page[scim.Group], error) {
-	group := scim.Group{ID: testGroup, ExternalID: "Session/one", DisplayName: "Session one"}
-	return scim.Page[scim.Group]{TotalResults: 1, Resources: []scim.Group{group}}, nil
+func (p *provider) ListGroups(_ context.Context, _ scim.Filter, start, count int) (scim.Page[scim.Group], error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	groups := []scim.Group{{ID: testGroup, ExternalID: "Session/one", DisplayName: "Session one"}}
+	if !p.faults.listDropsCreatedGroups {
+		groups = append(groups, p.groups...)
+	}
+	from := min(start-1, len(groups))
+	return scim.Page[scim.Group]{TotalResults: len(groups), Resources: groups[from:min(from+count, len(groups))]}, nil
+}
+
+func (p *provider) CreateGroup(_ context.Context, group scim.Group) (scim.Group, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	set, err := group.PermissionSet()
+	if err != nil {
+		return scim.Group{}, err
+	}
+	if !p.faults.duplicateGroup {
+		for _, existing := range p.groups {
+			if existing.ExternalID == group.ExternalID {
+				return scim.Group{}, scim.ErrConflict
+			}
+		}
+	}
+	created := scim.Group{ID: p.id("set-"), ExternalID: group.ExternalID, DisplayName: set.Kind + " " + set.UID}
+	p.groups = append(p.groups, created)
+	return created, nil
 }
 
 func (p *provider) PatchGroup(_ context.Context, id string, patch scim.Patch) (scim.Group, error) {

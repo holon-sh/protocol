@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
+
+	"github.com/holon-sh/protocol/identity"
 )
 
 var (
@@ -76,8 +79,7 @@ type Meta struct {
 }
 
 // Group is the core Group resource of [RFC 7643 §4.2]. Every Holon permission set is one Group: ExternalID
-// is "<kind>/<uid>" and DisplayName is "<kind> <uid>", both derived and read-only. Registration creates
-// groups; Holon only reads them and changes their members.
+// is "<kind>/<uid>" and DisplayName is "<kind> <uid>", derived and read-only.
 //
 // [RFC 7643 §4.2]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.2
 type Group struct {
@@ -86,6 +88,18 @@ type Group struct {
 	DisplayName string `json:"displayName"`
 	Members     []Ref  `json:"members,omitempty"`
 	Meta        Meta   `json:"meta"`
+}
+
+func (g Group) PermissionSet() (identity.PermissionSet, error) {
+	i := strings.LastIndexByte(g.ExternalID, '/')
+	if i < 0 {
+		return identity.PermissionSet{}, ErrInvalid
+	}
+	set := identity.PermissionSet{Kind: g.ExternalID[:i], UID: g.ExternalID[i+1:]}
+	if set.Validate() != nil {
+		return identity.PermissionSet{}, ErrInvalid
+	}
+	return set, nil
 }
 
 // Filter is the subset of the [RFC 7644 §3.4.2.2] grammar Holon sends: userName eq "…", emails.value eq "…"
@@ -170,9 +184,10 @@ type Capabilities struct {
 // Backend serves the resources behind Handler. Ids are the backend's own. ListUsers and ListGroups receive a
 // 1-based start index and a count of at most 200 ([RFC 7644 §3.4.2.4]). ListUsers answers ErrFilter to a Filter it
 // cannot evaluate, and ListGroups only sees an empty Filter, because its fields are all User attributes;
-// CreateUser is [RFC 7644 §3.3] and answers ErrConflict to a taken userName; PatchUser
-// and PatchGroup are [RFC 7644 §3.5.2] and answer ErrInvalid to an operation they do not implement;
-// DeleteUser is [RFC 7644 §3.6]. An unknown id is ErrNotFound.
+// CreateUser is [RFC 7644 §3.3] and answers ErrConflict to a taken userName; CreateGroup is [RFC 7644 §3.3] and
+// answers ErrConflict to a taken ExternalID and ErrInvalid to one that names no permission set; PatchUser and
+// PatchGroup are [RFC 7644 §3.5.2] and answer ErrInvalid to an operation they do not implement; DeleteUser is
+// [RFC 7644 §3.6]. An unknown id is ErrNotFound.
 //
 // [RFC 7644 §3.4.2.4]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2.4
 // [RFC 7644 §3.3]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.3
@@ -186,5 +201,6 @@ type Backend interface {
 	PatchUser(context.Context, string, Patch) (User, error)
 	DeleteUser(context.Context, string) error
 	ListGroups(context.Context, Filter, int, int) (Page[Group], error)
+	CreateGroup(context.Context, Group) (Group, error)
 	PatchGroup(context.Context, string, Patch) (Group, error)
 }
