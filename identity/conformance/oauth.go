@@ -30,14 +30,15 @@ type discovery struct {
 	AuthorizationEndpoint       string   `json:"authorization_endpoint"`
 	DeviceAuthorizationEndpoint string   `json:"device_authorization_endpoint"`
 	TokenEndpoint               string   `json:"token_endpoint"`
+	RevocationEndpoint          string   `json:"revocation_endpoint"`
 	EndSessionEndpoint          string   `json:"end_session_endpoint"`
 	JWKSURI                     string   `json:"jwks_uri"`
 	CodeChallengeMethods        []string `json:"code_challenge_methods_supported"`
 	TokenEndpointAuth           []string `json:"token_endpoint_auth_methods_supported"`
 }
 
-// validate applies the issuer comparison of [OpenID Connect Discovery 1.0 §4.3], the methods of [RFC 8414 §2] and
-// the device endpoint of [RFC 8628 §4].
+// validate applies the issuer comparison of [OpenID Connect Discovery 1.0 §4.3], the methods and revocation
+// endpoint of [RFC 8414 §2] and the device endpoint of [RFC 8628 §4].
 //
 // [OpenID Connect Discovery 1.0 §4.3]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationValidation
 // [RFC 8414 §2]: https://www.rfc-editor.org/rfc/rfc8414.html#section-2
@@ -48,7 +49,7 @@ func (d discovery) validate(issuer string) error {
 	}
 	for name, endpoint := range map[string]string{
 		"authorization_endpoint": d.AuthorizationEndpoint, "device_authorization_endpoint": d.DeviceAuthorizationEndpoint,
-		"token_endpoint": d.TokenEndpoint, "end_session_endpoint": d.EndSessionEndpoint, "jwks_uri": d.JWKSURI,
+		"token_endpoint": d.TokenEndpoint, "revocation_endpoint": d.RevocationEndpoint, "end_session_endpoint": d.EndSessionEndpoint, "jwks_uri": d.JWKSURI,
 	} {
 		if !httpsEndpoint(endpoint) {
 			return fmt.Errorf("%s %q is not an HTTPS URL", name, endpoint)
@@ -99,6 +100,10 @@ func (r *rejection) Error() string {
 	return fmt.Sprintf("the request was refused: status %d, error %q", r.Status, r.Code)
 }
 
+// send decodes a 200 into output and answers any other status as *rejection. A nil output ignores the body, as a
+// client does with the [RFC 7009 §2.2] response.
+//
+// [RFC 7009 §2.2]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.2
 func (s *suite) send(req *http.Request, output any) error {
 	response, err := s.http.Do(req)
 	if err != nil {
@@ -110,6 +115,9 @@ func (s *suite) send(req *http.Request, output any) error {
 		refused := &rejection{Status: response.StatusCode, Challenge: response.Header.Get("WWW-Authenticate")}
 		_ = json.NewDecoder(body).Decode(refused)
 		return refused
+	}
+	if output == nil {
+		return nil
 	}
 	if err := json.NewDecoder(body).Decode(output); err != nil {
 		return fmt.Errorf("response from %s: %w", req.URL, err)

@@ -22,16 +22,22 @@
 //     has finished setting up.
 //   - Introspection. The adapter answers [RFC 7662 §2.2] with active, iss, sub, client_id, exp, aud and scope,
 //     and authenticates the caller by the shared bearer, which [RFC 7662 §2.1] allows.
+//   - Revocation. The issuer advertises revocation_endpoint, [RFC 8414 §2], and accepts [RFC 7009 §2.1] from the
+//     cli client with its client_id and no credential. A revoked refresh token is refused with invalid_grant on
+//     its next use, [RFC 6749 §5.2].
 //   - Discovery. {issuer}/.well-known/openid-configuration serves [OpenID Connect Discovery 1.0 §4]. Holon reads
-//     the authorization, device, token and end-session endpoints from it and nowhere else.
+//     the authorization, device, token, revocation and end-session endpoints from it and nowhere else.
 //
 // [RFC 6749 §4.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
 // [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
+// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
+// [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 // [RFC 7636 §4.2]: https://www.rfc-editor.org/rfc/rfc7636.html#section-4.2
 // [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1
 // [RFC 7662 §2.1]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.1
 // [RFC 7662 §2.2]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.2
+// [RFC 8414 §2]: https://www.rfc-editor.org/rfc/rfc8414.html#section-2
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 // [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
