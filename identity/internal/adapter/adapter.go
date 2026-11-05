@@ -33,15 +33,15 @@ func NoRedirects(transport *http.Client, timeout time.Duration) *http.Client {
 	return &client
 }
 
-func (c *Client) Do(ctx context.Context, method, path, mediaType string, body []byte) (*http.Response, error) {
+func (c *Client) Do(ctx context.Context, method, path, accept, contentType string, body []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, c.endpoint+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.bearer)
-	req.Header.Set("Accept", mediaType)
+	req.Header.Set("Accept", accept)
 	if body != nil {
-		req.Header.Set("Content-Type", mediaType)
+		req.Header.Set("Content-Type", contentType)
 	}
 	return c.http.Do(req)
 }

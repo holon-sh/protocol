@@ -36,7 +36,7 @@ func TestClientDoesNotFollowRedirects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := client.Do(t.Context(), http.MethodGet, "/", "application/json", nil)
+	response, err := client.Do(t.Context(), http.MethodGet, "/", "application/json", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

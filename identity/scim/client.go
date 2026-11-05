@@ -136,7 +136,7 @@ func (c *Client) call(ctx context.Context, method, path string, request any, wan
 		}
 		body = data
 	}
-	response, err := c.adapter.Do(ctx, method, "/scim/v2"+path, mediaType, body)
+	response, err := c.adapter.Do(ctx, method, "/scim/v2"+path, mediaType, mediaType, body)
 	if err != nil {
 		return ErrUnavailable
 	}

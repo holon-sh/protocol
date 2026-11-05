@@ -13,6 +13,7 @@ import (
 
 	"github.com/holon-sh/protocol/identity"
 	"github.com/holon-sh/protocol/identity/internal/adapter"
+	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
 	"github.com/holon-sh/protocol/identity/scim"
 )
@@ -152,6 +153,7 @@ type suite struct {
 	users         *scim.Client
 	invitations   *invitation.Client
 	registrations *identity.Client
+	introspector  *introspection.Client
 }
 
 func newSuite(cfg Config) (*suite, error) {
@@ -166,11 +168,12 @@ func newSuite(cfg Config) (*suite, error) {
 	users, usersErr := scim.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
 	invitations, invitationsErr := invitation.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
 	registrations, registrationsErr := identity.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
-	if err := errors.Join(rawErr, usersErr, invitationsErr, registrationsErr); err != nil {
+	introspector, introspectorErr := introspection.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
+	if err := errors.Join(rawErr, usersErr, invitationsErr, registrationsErr, introspectorErr); err != nil {
 		return nil, err
 	}
 	return &suite{
 		wait: wait, cfg: cfg, http: adapter.NoRedirects(cfg.HTTP, requestTimeout), adapter: raw,
-		users: users, invitations: invitations, registrations: registrations,
+		users: users, invitations: invitations, registrations: registrations, introspector: introspector,
 	}, nil
 }
