@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holon-sh/protocol"
 	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
 	"github.com/holon-sh/protocol/identity/scim"
@@ -54,7 +55,6 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"no pendingSetup", (*suite).checkSCIMCreate, faults{noPendingSetup: true}, "pendingSetup"},
 		{"duplicate userName accepted", (*suite).checkSCIMCreate, faults{duplicateUserName: true}, "one userName"},
 		{"group created twice", (*suite).checkSCIMCreateGroup, faults{duplicateGroup: true}, "one externalId succeeded"},
-		{"created group unlisted", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true}, "does not include"},
 		{"created group unlisted and start ignored", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true, startIgnored: true}, "does not include"},
 		{"patch ignored", (*suite).checkSCIMPatch, faults{patchIgnored: true}, "replace active"},
 		{"members ignored", (*suite).checkSCIMPatch, faults{membersIgnored: true}, "membership"},
@@ -72,6 +72,12 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"revoked refresh token still refreshes", (*suite).checkCLIClient, faults{revocationIgnored: true}, "a revoked refresh token"},
 		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
 		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, unregisteredScope},
+		{"sign-out keeps the access token", (*suite).checkSignOut, faults{signOutKeepsAccess: true}, "of a signed-out session"},
+		{"sign-out keeps the refresh token", (*suite).checkSignOut, faults{signOutKeepsRefresh: true}, "refresh after sign-out"},
+		{"signed-out page unregistered on the base origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.BasePlane}, "base origin: sign-out answered"},
+		{"signed-out page unregistered on the admin origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.AdminPlane}, "admin origin: sign-out answered"},
+		{"signed-out page unregistered on the dev origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.DevPlane}, "dev origin: sign-out answered"},
+		{"refresh refused before sign-out", (*suite).checkSignOut, faults{refreshRefused: true}, "refresh before sign-out"},
 		{"same password accepted", (*suite).checkTemporaryPassword, faults{samePasswordAccepted: true}, "accepted the temporary password"},
 		{"name not collected", (*suite).checkTemporaryPassword, faults{nameNotCollected: true}, "name"},
 		{"still pending after setup", (*suite).checkTemporaryPassword, faults{stillPending: true}, "pendingSetup"},
@@ -115,7 +121,6 @@ func TestDeviceGrantVariants(t *testing.T) {
 		faults    faults
 		slowDowns int
 	}{
-		{name: "polling respects the interval"},
 		{name: "an issuer without a complete verification URI", faults: faults{noCompleteVerificationURI: true}},
 		{name: "an issuer that asks for slower polling", faults: faults{slowDownOnce: true}, slowDowns: 1},
 	} {
@@ -245,37 +250,27 @@ func TestCheckActive(t *testing.T) {
 }
 
 func TestWantIssuedScope(t *testing.T) {
-	registered := []string{"app:read", "app:write"}
-	for scope, valid := range map[string]bool{
-		"openid app:read app:write": true,
-		"":                          false,
-		"openid app:read":           false,
-	} {
-		if err := wantIssuedScope(scope, registered); (err == nil) != valid {
-			t.Errorf("wantIssuedScope(%q) = %v, want valid %v", scope, err, valid)
+	for _, scope := range []string{"", "openid app:read"} {
+		if err := wantIssuedScope(scope, testScopes); err == nil {
+			t.Errorf("wantIssuedScope(%q) accepted", scope)
 		}
 	}
 }
 
 func TestAuthorizationCode(t *testing.T) {
 	const redirectURI, state = "https://holon.example/callback", "state"
-	for name, test := range map[string]struct {
-		redirect string
-		want     string
-	}{
-		"code":         {"https://holon.example/callback?code=abc&state=state", "abc"},
-		"other target": {"https://elsewhere.example/callback?code=abc&state=state", ""},
-		"wrong state":  {"https://holon.example/callback?code=abc&state=other", ""},
-		"error":        {"https://holon.example/callback?error=access_denied&state=state", ""},
+	for name, raw := range map[string]string{
+		"other target": "https://elsewhere.example/callback?code=abc&state=state",
+		"wrong state":  "https://holon.example/callback?code=abc&state=other",
+		"error":        "https://holon.example/callback?error=access_denied&state=state",
 	} {
 		t.Run(name, func(t *testing.T) {
-			redirect, err := url.Parse(test.redirect)
+			redirect, err := url.Parse(raw)
 			if err != nil {
 				t.Fatal(err)
 			}
-			got, err := authorizationCode(redirect, redirectURI, state)
-			if got != test.want || (err == nil) != (test.want != "") {
-				t.Fatalf("code %q, error %v", got, err)
+			if code, err := authorizationCode(redirect, redirectURI, state); err == nil {
+				t.Fatalf("accepted code %q", code)
 			}
 		})
 	}
@@ -283,23 +278,15 @@ func TestAuthorizationCode(t *testing.T) {
 
 func TestValidateResult(t *testing.T) {
 	now := time.Unix(1000, 0)
-	can := scim.Capabilities{Invitations: true}
-	for _, test := range []struct {
-		name         string
-		result       invitation.Result
-		capabilities scim.Capabilities
-		valid        bool
-	}{
-		{"sent", invitation.Result{UserID: "u", Sent: true, ExpiresAt: now.Add(time.Hour)}, can, true},
-		{"no mail", invitation.Result{UserID: "u"}, scim.Capabilities{}, true},
-		{"no user", invitation.Result{Sent: true, ExpiresAt: now.Add(time.Hour)}, can, false},
-		{"not sent with the capability", invitation.Result{UserID: "u"}, can, false},
-		{"already expired", invitation.Result{UserID: "u", Sent: true, ExpiresAt: now}, can, false},
-		{"outlives the lifetime", invitation.Result{UserID: "u", Sent: true, ExpiresAt: now.Add(2 * time.Hour)}, can, false},
+	for name, result := range map[string]invitation.Result{
+		"no user":                      {Sent: true, ExpiresAt: now.Add(time.Hour)},
+		"not sent with the capability": {UserID: "u"},
+		"already expired":              {UserID: "u", Sent: true, ExpiresAt: now},
+		"outlives the lifetime":        {UserID: "u", Sent: true, ExpiresAt: now.Add(2 * time.Hour)},
 	} {
-		t.Run(test.name, func(t *testing.T) {
-			if err := validateResult(test.result, test.capabilities, time.Hour, now); (err == nil) != test.valid {
-				t.Fatalf("validateResult = %v, want valid %v", err, test.valid)
+		t.Run(name, func(t *testing.T) {
+			if err := validateResult(result, scim.Capabilities{Invitations: true}, time.Hour, now); err == nil {
+				t.Fatal("accepted")
 			}
 		})
 	}

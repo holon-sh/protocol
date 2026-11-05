@@ -26,6 +26,12 @@
 //   - Revocation. The issuer advertises revocation_endpoint, [RFC 8414 §2], and accepts [RFC 7009 §2.1] from the
 //     cli client with its client_id and no credential. A revoked refresh token is refused with invalid_grant on
 //     its next use, [RFC 6749 §5.2].
+//   - Sign-out. A request to end_session_endpoint with id_token_hint, including an expired one, ends the provider
+//     session without asking the user, [OpenID Connect RP-Initiated Logout 1.0 §2]: the session's access token
+//     goes inactive and its refresh token is refused with invalid_grant. With no hint the provider asks the user
+//     to confirm before it ends a browser's session. The browser client has {origin}/?signedOut=1 registered as a
+//     post-logout redirect URI for the base, admin and dev origins, and the provider redirects there after
+//     logout, [OpenID Connect RP-Initiated Logout 1.0 §3].
 //   - Discovery. {issuer}/.well-known/openid-configuration serves [OpenID Connect Discovery 1.0 §4]. Holon reads
 //     the authorization, device, token, revocation and end-session endpoints from it and nowhere else.
 //
@@ -43,4 +49,6 @@
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 // [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
 // [OpenID Connect Discovery 1.0 §4]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig
+// [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
+// [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 package profile
