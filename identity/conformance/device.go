@@ -57,7 +57,7 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 		return token{}, err
 	}
 	var device deviceAuthorization
-	request := url.Values{"scope": {"offline_access " + s.resourceScope()}, "resource": {resource}}
+	request := url.Values{"scope": {"openid offline_access"}, "resource": {resource}}
 	if err := s.post(ctx, document.DeviceAuthorizationEndpoint, client, request, &device); err != nil {
 		return token{}, fmt.Errorf("device authorization request: %w", err)
 	}
@@ -106,7 +106,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	signedIn, err := s.browserToken(ctx, s.resourceScope())
+	signedIn, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}

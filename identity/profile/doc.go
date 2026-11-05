@@ -6,15 +6,15 @@
 //     [RFC 6749 §4.1] and [RFC 7636 §4.2]. The cli client is public and uses the device authorization grant,
 //     [RFC 8628 §3], with offline_access. One person has one sub at both, the public subject type of
 //     [OpenID Connect Core 1.0 §8]. A service account uses client credentials, [RFC 6749 §4.4]; the conformance suite
-//     is given one.
+//     is given one. The issuer refuses the password grant to every client, [RFC 9700 §2.4].
 //   - Resource. Every authorization, device and token request carries exactly one resource parameter,
 //     [RFC 8707 §2]. The access token's aud is that resource and nothing else, [RFC 8707 §2.2]. A token requested
 //     for no resource or an unregistered one is inactive or refused with invalid_target, and a refresh naming a
 //     different resource is refused with invalid_target, [RFC 8707 §2].
-//   - Scope. The issued scope is the requested scopes limited to those the resource registered and the subject
-//     holds through a permission set. When it differs from the request, the token response carries the scope
-//     parameter, [RFC 6749 §5.1]. Protocol scopes (openid, profile, email, offline_access) pass through
-//     unchanged.
+//   - Scope. A request names no resource scope. The resource decides, the default [RFC 6749 §3.3] allows: the issued
+//     scope is what the resource registered and the subject holds through a permission set when the token is issued,
+//     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1]. Protocol scopes
+//     (openid, profile, email, offline_access) pass through unchanged.
 //   - Registration. A token minted before its resource was registered, or after it was deleted and registered
 //     again, is inactive.
 //   - Passwords. A password written through SCIM, [RFC 7643 §4.1.1], is temporary: the issuer requires a new one
@@ -51,6 +51,7 @@
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 // [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
+// [RFC 9700 §2.4]: https://www.rfc-editor.org/rfc/rfc9700.html#section-2.4
 // [OpenID Connect Core 1.0 §8]: https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 // [OpenID Connect Discovery 1.0 §4]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout

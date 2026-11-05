@@ -42,7 +42,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		want   string
 	}{
 		{"issuer differs", (*suite).checkDiscovery, faults{wrongIssuer: true}, "issuer"},
-		{"unregistered scope granted", (*suite).checkClientCredentials, faults{leakScope: true}, unregisteredScope},
+		{"unregistered scope granted", (*suite).checkClientCredentials, faults{leakScope: true}, leakedScope},
 		{"no bearer accepted", (*suite).checkIntrospection, faults{openIntrospection: true}, "no bearer"},
 		{"unknown token active", (*suite).checkIntrospection, faults{activeUnknownToken: true}, "unknown to the issuer"},
 		{"client_id differs", (*suite).checkIntrospection, faults{wrongClientID: true}, "client_id"},
@@ -73,7 +73,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"cli refresh serves another resource", (*suite).checkRefreshResource, faults{cliRefreshAnyResource: true}, "cli client: refresh for another resource succeeded"},
 		{"revoked refresh token still refreshes", (*suite).checkCLIClient, faults{revocationIgnored: true}, "a revoked refresh token"},
 		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
-		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, unregisteredScope},
+		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, leakedScope},
+		{"held scope issued only when named", (*suite).checkIssuedScope, faults{scopeOnlyWhenNamed: true}, "held but not issued"},
 		{"sign-out keeps the access token", (*suite).checkSignOut, faults{signOutKeepsAccess: true}, "of a signed-out session"},
 		{"sign-out keeps the refresh token", (*suite).checkSignOut, faults{signOutKeepsRefresh: true}, "refresh after sign-out"},
 		{"signed-out page unregistered on the base origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.BasePlane}, "base origin: sign-out answered"},

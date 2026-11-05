@@ -18,10 +18,7 @@ import (
 	"github.com/holon-sh/protocol/identity/introspection"
 )
 
-const (
-	maxResponse       = 1 << 20
-	unregisteredScope = "conformance:unregistered"
-)
+const maxResponse = 1 << 20
 
 var protocolScopes = []string{"openid", "profile", "email", "offline_access"}
 
@@ -174,13 +171,10 @@ func (s *suite) browserClient() oauthClient {
 // clientCredentials is the grant of [RFC 6749 §4.4], requested by the service account.
 //
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
-func (s *suite) clientCredentials(ctx context.Context, resource string, scopes ...string) (token, error) {
+func (s *suite) clientCredentials(ctx context.Context, resource string) (token, error) {
 	form := url.Values{"grant_type": {"client_credentials"}}
 	if resource != "" {
 		form.Set("resource", resource)
-	}
-	if len(scopes) != 0 {
-		form.Set("scope", strings.Join(scopes, " "))
 	}
 	return s.exchange(ctx, oauthClient{id: s.cfg.ServiceAccountClientID, secret: s.cfg.ServiceAccountClientSecret}, form)
 }
@@ -197,14 +191,14 @@ func pkceChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-func (s *suite) authorize(ctx context.Context, scope string, person SignInRequest) (grant, error) {
+func (s *suite) authorize(ctx context.Context, person SignInRequest) (grant, error) {
 	document, err := s.discover(ctx)
 	if err != nil {
 		return grant{}, err
 	}
 	state, verifier := rand.Text(), rand.Text()+rand.Text()
 	query := url.Values{
-		"response_type": {"code"}, "client_id": {s.cfg.BrowserClientID}, "redirect_uri": {s.cfg.BrowserRedirectURI}, "scope": {scope},
+		"response_type": {"code"}, "client_id": {s.cfg.BrowserClientID}, "redirect_uri": {s.cfg.BrowserRedirectURI}, "scope": {"openid"},
 		"state": {state}, "resource": {s.cfg.Resource.Audience}, "code_challenge": {pkceChallenge(verifier)}, "code_challenge_method": {"S256"},
 	}
 	request := person
@@ -248,8 +242,8 @@ func (s *suite) redeem(ctx context.Context, issued grant) (token, error) {
 	})
 }
 
-func (s *suite) browserToken(ctx context.Context, scope string) (token, error) {
-	issued, err := s.authorize(ctx, scope, SignInRequest{})
+func (s *suite) browserToken(ctx context.Context) (token, error) {
+	issued, err := s.authorize(ctx, SignInRequest{})
 	if err != nil {
 		return token{}, err
 	}
