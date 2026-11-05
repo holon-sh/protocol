@@ -12,7 +12,6 @@ import (
 
 var (
 	ErrNotFound    = errors.New("scim resource not found")
-	ErrFilter      = errors.New("scim filter not supported")
 	ErrInvalid     = errors.New("scim request invalid")
 	ErrConflict    = errors.New("scim resource conflict")
 	ErrUnavailable = errors.New("scim backend unavailable")
@@ -102,18 +101,6 @@ func (g Group) PermissionSet() (identity.PermissionSet, error) {
 	return set, nil
 }
 
-// Filter is the subset of the [RFC 7644 §3.4.2.2] grammar Holon sends: userName eq "…", emails.value eq "…"
-// or groups.value eq "<group id>", one at a time. Anything else is ErrFilter, which Handler answers with the
-// invalidFilter scimType of [RFC 7644 §3.12].
-//
-// [RFC 7644 §3.4.2.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2.2
-// [RFC 7644 §3.12]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.12
-type Filter struct {
-	UserName string
-	Email    string
-	Group    string
-}
-
 // Page is the ListResponse of [RFC 7644 §3.4.2] with the index pagination of [RFC 7644 §3.4.2.4]: StartIndex is
 // 1-based and Handler caps the requested count at 200. A Backend fills TotalResults and Resources, and Handler the
 // rest.
@@ -144,36 +131,6 @@ type Operation struct {
 	Value json.RawMessage `json:"value,omitempty"`
 }
 
-// ServiceProviderConfig is [RFC 7643 §5] plus Holon's capabilities extension. Handler sets Schemas, so a
-// backend leaves it empty.
-//
-// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
-type ServiceProviderConfig struct {
-	Schemas        []string     `json:"schemas"`
-	Patch          Supported    `json:"patch"`
-	Bulk           Supported    `json:"bulk"`
-	Filter         Filtering    `json:"filter"`
-	ChangePassword Supported    `json:"changePassword"`
-	Sort           Supported    `json:"sort"`
-	ETag           Supported    `json:"etag"`
-	Holon          Capabilities `json:"urn:holon:params:scim:schemas:extension:capabilities:1.0"`
-}
-
-// Supported is a boolean capability of [RFC 7643 §5].
-//
-// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
-type Supported struct {
-	Supported bool `json:"supported"`
-}
-
-// Filtering is the filter capability of [RFC 7643 §5].
-//
-// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
-type Filtering struct {
-	Supported  bool `json:"supported"`
-	MaxResults int  `json:"maxResults"`
-}
-
 // Capabilities is read at request time: Invitations says the backend can send a setup message right now,
 // Provider names the identity provider everyone signs in through when there is one.
 type Capabilities struct {
@@ -181,25 +138,26 @@ type Capabilities struct {
 	Provider    string `json:"provider,omitempty"`
 }
 
-// Backend serves the resources behind Handler. Ids are the backend's own. ListUsers and ListGroups receive a
-// 1-based start index and a count of at most 200 ([RFC 7644 §3.4.2.4]). ListUsers answers ErrFilter to a Filter it
-// cannot evaluate, and ListGroups only sees an empty Filter, because its fields are all User attributes;
-// CreateUser is [RFC 7644 §3.3] and answers ErrConflict to a taken userName; CreateGroup is [RFC 7644 §3.3] and
-// answers ErrConflict to a taken ExternalID; PatchUser and PatchGroup are [RFC 7644 §3.5.2] and answer ErrInvalid to
-// an operation they do not implement; DeleteUser is [RFC 7644 §3.6]. An unknown id is ErrNotFound.
+// Backend serves the resources behind Handler, which parses and answers the wire. Ids are the backend's own. ListUsers
+// and ListGroups receive a 1-based start index and a count of at most 200 ([RFC 7644 §3.4.2.4]); FindUser answers
+// the one person whose userName is exact, and CreateUser is [RFC 7644 §3.3] and answers ErrConflict to a taken
+// userName; CreateGroup is [RFC 7644 §3.3] and answers ErrConflict to a taken set; PatchUser and PatchGroup are
+// [RFC 7644 §3.5.2] and answer ErrInvalid to an operation they do not implement; DeleteUser is [RFC 7644 §3.6]. An
+// unknown id is ErrNotFound.
 //
 // [RFC 7644 §3.4.2.4]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2.4
 // [RFC 7644 §3.3]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.3
 // [RFC 7644 §3.5.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.5.2
 // [RFC 7644 §3.6]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.6
 type Backend interface {
-	Config(context.Context) (ServiceProviderConfig, error)
-	ListUsers(context.Context, Filter, int, int) (Page[User], error)
+	Capabilities(context.Context) (Capabilities, error)
+	ListUsers(context.Context, int, int) (Page[User], error)
+	FindUser(context.Context, string) (User, error)
 	GetUser(context.Context, string) (User, error)
 	CreateUser(context.Context, User) (User, error)
 	PatchUser(context.Context, string, Patch) (User, error)
 	DeleteUser(context.Context, string) error
-	ListGroups(context.Context, Filter, int, int) (Page[Group], error)
-	CreateGroup(context.Context, Group) (Group, error)
+	ListGroups(context.Context, int, int) (Page[Group], error)
+	CreateGroup(context.Context, identity.PermissionSet) (Group, error)
 	PatchGroup(context.Context, string, Patch) (Group, error)
 }

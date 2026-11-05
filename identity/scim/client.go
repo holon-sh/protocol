@@ -9,6 +9,8 @@ import (
 	"strconv"
 
 	"github.com/holon-sh/protocol/identity/internal/adapter"
+
+	"github.com/holon-sh/protocol/identity"
 )
 
 const maxResponse = 4 << 20
@@ -28,20 +30,35 @@ func NewClient(endpoint, bearer string, transport *http.Client) (*Client, error)
 	return &Client{adapter: client}, nil
 }
 
-// Config reads the document of [RFC 7644 §4].
+// Capabilities reads Holon's extension of the document of [RFC 7644 §4].
 //
 // [RFC 7644 §4]: https://www.rfc-editor.org/rfc/rfc7644.html#section-4
-func (c *Client) Config(ctx context.Context) (ServiceProviderConfig, error) {
-	var config ServiceProviderConfig
+func (c *Client) Capabilities(ctx context.Context) (Capabilities, error) {
+	var config serviceProviderConfig
 	err := c.call(ctx, http.MethodGet, "/ServiceProviderConfig", nil, http.StatusOK, &config)
-	return config, err
+	return config.Holon, err
 }
 
-// ListUsers is [RFC 7644 §3.4.2]; start is 1-based. A Filter with more than one field is ErrFilter.
+// ListUsers is [RFC 7644 §3.4.2]; start is 1-based.
 //
 // [RFC 7644 §3.4.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2
-func (c *Client) ListUsers(ctx context.Context, filter Filter, start, count int) (Page[User], error) {
-	return listResources[User](ctx, c, "/Users", filter, start, count)
+func (c *Client) ListUsers(ctx context.Context, start, count int) (Page[User], error) {
+	return listResources[User](ctx, c, "/Users", url.Values{"startIndex": {strconv.Itoa(start)}, "count": {strconv.Itoa(count)}})
+}
+
+// FindUser is the userName eq filter of [RFC 7644 §3.4.2.2]; userName is unique, so nobody is ErrNotFound.
+//
+// [RFC 7644 §3.4.2.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2.2
+func (c *Client) FindUser(ctx context.Context, userName string) (User, error) {
+	literal, _ := json.Marshal(userName)
+	page, err := listResources[User](ctx, c, "/Users", url.Values{"filter": {"userName eq " + string(literal)}, "count": {"1"}})
+	if err != nil {
+		return User{}, err
+	}
+	if len(page.Resources) == 0 {
+		return User{}, ErrNotFound
+	}
+	return page.Resources[0], nil
 }
 
 // GetUser is [RFC 7644 §3.4.1].
@@ -78,18 +95,19 @@ func (c *Client) DeleteUser(ctx context.Context, id string) error {
 	return c.call(ctx, http.MethodDelete, "/Users/"+url.PathEscape(id), nil, http.StatusNoContent, nil)
 }
 
-// ListGroups is [RFC 7644 §3.4.2]; start is 1-based. Any non-empty Filter is ErrFilter.
+// ListGroups is [RFC 7644 §3.4.2]; start is 1-based.
 //
 // [RFC 7644 §3.4.2]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.4.2
-func (c *Client) ListGroups(ctx context.Context, filter Filter, start, count int) (Page[Group], error) {
-	return listResources[Group](ctx, c, "/Groups", filter, start, count)
+func (c *Client) ListGroups(ctx context.Context, start, count int) (Page[Group], error) {
+	return listResources[Group](ctx, c, "/Groups", url.Values{"startIndex": {strconv.Itoa(start)}, "count": {strconv.Itoa(count)}})
 }
 
 // CreateGroup is [RFC 7644 §3.3].
 //
 // [RFC 7644 §3.3]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.3
-func (c *Client) CreateGroup(ctx context.Context, group Group) (Group, error) {
+func (c *Client) CreateGroup(ctx context.Context, set identity.PermissionSet) (Group, error) {
 	var created Group
+	group := Group{ExternalID: set.Kind + "/" + set.UID}
 	err := c.call(ctx, http.MethodPost, "/Groups", groupResource{Group: group, Schemas: []string{schemaGroup}}, http.StatusCreated, &created)
 	return created, err
 }
@@ -103,17 +121,9 @@ func (c *Client) PatchGroup(ctx context.Context, id string, patch Patch) (Group,
 	return group, err
 }
 
-func listResources[T any](ctx context.Context, c *Client, path string, filter Filter, start, count int) (Page[T], error) {
-	expression, err := filter.expression()
-	if err != nil {
-		return Page[T]{}, err
-	}
-	query := url.Values{"startIndex": {strconv.Itoa(start)}, "count": {strconv.Itoa(count)}}
-	if expression != "" {
-		query.Set("filter", expression)
-	}
+func listResources[T any](ctx context.Context, c *Client, path string, query url.Values) (Page[T], error) {
 	var page Page[T]
-	err = c.call(ctx, http.MethodGet, path+"?"+query.Encode(), nil, http.StatusOK, &page)
+	err := c.call(ctx, http.MethodGet, path+"?"+query.Encode(), nil, http.StatusOK, &page)
 	return page, err
 }
 
@@ -133,7 +143,7 @@ func (c *Client) call(ctx context.Context, method, path string, request any, wan
 	defer func() { _ = response.Body.Close() }()
 	limited := io.LimitReader(response.Body, maxResponse)
 	if response.StatusCode != want {
-		return statusError(response.StatusCode, limited)
+		return statusError(response.StatusCode)
 	}
 	if output != nil && json.NewDecoder(limited).Decode(output) != nil {
 		return ErrUnavailable
@@ -141,13 +151,9 @@ func (c *Client) call(ctx context.Context, method, path string, request any, wan
 	return nil
 }
 
-func statusError(status int, body io.Reader) error {
+func statusError(status int) error {
 	switch status {
 	case http.StatusBadRequest:
-		var response errorResponse
-		if json.NewDecoder(body).Decode(&response) == nil && response.ScimType == "invalidFilter" {
-			return ErrFilter
-		}
 		return ErrInvalid
 	case http.StatusNotFound:
 		return ErrNotFound

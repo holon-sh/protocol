@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+
+	"github.com/holon-sh/protocol/identity"
 )
 
 var _ Backend = (*Client)(nil)
@@ -15,12 +17,11 @@ type fakeBackend struct {
 	next         int
 	users        map[string]User
 	groups       map[string]Group
-	config       ServiceProviderConfig
+	capabilities Capabilities
 	created      User
-	createdGroup Group
+	createdSet   identity.PermissionSet
 	start        int
 	count        int
-	filter       Filter
 }
 
 func newFakeBackend() *fakeBackend {
@@ -33,8 +34,19 @@ func newFakeBackend() *fakeBackend {
 	}
 }
 
-func (b *fakeBackend) Config(context.Context) (ServiceProviderConfig, error) {
-	return b.config, nil
+func (b *fakeBackend) Capabilities(context.Context) (Capabilities, error) {
+	return b.capabilities, nil
+}
+
+func (b *fakeBackend) FindUser(_ context.Context, userName string) (User, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, user := range b.users {
+		if user.UserName == userName {
+			return user, nil
+		}
+	}
+	return User{}, ErrNotFound
 }
 
 func window[T any](byID map[string]T, id func(T) string, start, count int) Page[T] {
@@ -47,17 +59,17 @@ func window[T any](byID map[string]T, id func(T) string, start, count int) Page[
 	return Page[T]{TotalResults: len(items), Resources: items[from:min(from+count, len(items))]}
 }
 
-func (b *fakeBackend) ListUsers(_ context.Context, filter Filter, start, count int) (Page[User], error) {
+func (b *fakeBackend) ListUsers(_ context.Context, start, count int) (Page[User], error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.filter, b.start, b.count = filter, start, count
+	b.start, b.count = start, count
 	return window(b.users, func(u User) string { return u.ID }, start, count), nil
 }
 
-func (b *fakeBackend) ListGroups(_ context.Context, filter Filter, start, count int) (Page[Group], error) {
+func (b *fakeBackend) ListGroups(_ context.Context, start, count int) (Page[Group], error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.filter, b.start, b.count = filter, start, count
+	b.start, b.count = start, count
 	return window(b.groups, func(g Group) string { return g.ID }, start, count), nil
 }
 
@@ -104,11 +116,11 @@ func (b *fakeBackend) DeleteUser(_ context.Context, id string) error {
 	return nil
 }
 
-func (b *fakeBackend) CreateGroup(_ context.Context, group Group) (Group, error) {
+func (b *fakeBackend) CreateGroup(_ context.Context, set identity.PermissionSet) (Group, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.createdGroup = group
-	return Group{ID: "g3", ExternalID: group.ExternalID, DisplayName: "derived"}, nil
+	b.createdSet = set
+	return Group{ID: "g3", ExternalID: set.Kind + "/" + set.UID, DisplayName: "derived"}, nil
 }
 
 func (b *fakeBackend) PatchGroup(_ context.Context, id string, _ Patch) (Group, error) {
@@ -119,11 +131,13 @@ func (b *fakeBackend) PatchGroup(_ context.Context, id string, _ Patch) (Group, 
 
 type failingBackend struct{ err error }
 
-func (b failingBackend) Config(context.Context) (ServiceProviderConfig, error) {
-	return ServiceProviderConfig{}, b.err
+func (b failingBackend) Capabilities(context.Context) (Capabilities, error) {
+	return Capabilities{}, b.err
 }
 
-func (b failingBackend) ListUsers(context.Context, Filter, int, int) (Page[User], error) {
+func (b failingBackend) FindUser(context.Context, string) (User, error) { return User{}, b.err }
+
+func (b failingBackend) ListUsers(context.Context, int, int) (Page[User], error) {
 	return Page[User]{}, b.err
 }
 
@@ -137,11 +151,13 @@ func (b failingBackend) PatchUser(context.Context, string, Patch) (User, error) 
 	return User{}, b.err
 }
 
-func (b failingBackend) ListGroups(context.Context, Filter, int, int) (Page[Group], error) {
+func (b failingBackend) ListGroups(context.Context, int, int) (Page[Group], error) {
 	return Page[Group]{}, b.err
 }
 
-func (b failingBackend) CreateGroup(context.Context, Group) (Group, error) { return Group{}, b.err }
+func (b failingBackend) CreateGroup(context.Context, identity.PermissionSet) (Group, error) {
+	return Group{}, b.err
+}
 
 func (b failingBackend) PatchGroup(context.Context, string, Patch) (Group, error) {
 	return Group{}, b.err

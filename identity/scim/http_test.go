@@ -71,7 +71,6 @@ func TestErrorEnvelope(t *testing.T) {
 		status   string
 		scimType string
 	}{
-		{"filter", ErrFilter, 400, "400", "invalidFilter"},
 		{"invalid", ErrInvalid, 400, "400", "invalidValue"},
 		{"not found", ErrNotFound, 404, "404", ""},
 		{"conflict", ErrConflict, 409, "409", "uniqueness"},
@@ -91,36 +90,45 @@ func TestErrorEnvelope(t *testing.T) {
 }
 
 func TestFilters(t *testing.T) {
-	const users, groups = "/scim/v2/Users", "/scim/v2/Groups"
 	for _, test := range []struct {
-		name, target, expression string
-		want                     Filter
-		rejected                 bool
+		name, expression, paging string
+		total, resources         int
 	}{
-		{name: "names ignore case", target: users, expression: `USERNAME EQ "a"`, want: Filter{UserName: "a"}},
-		{name: "another attribute", target: users, expression: `displayName eq "a"`, rejected: true},
-		{name: "another operator", target: users, expression: `userName ne "a"`, rejected: true},
-		{name: "no value", target: users, expression: `userName eq`, rejected: true},
-		{name: "unquoted value", target: users, expression: `userName eq a`, rejected: true},
-		{name: "empty value", target: users, expression: `userName eq ""`, rejected: true},
-		{name: "two spaces before the value", target: users, expression: `userName eq  "a"`, rejected: true},
-		{name: "compound", target: users, expression: `userName eq "a" and active eq true`, rejected: true},
-		{name: "value path", target: users, expression: `emails[value eq "a"]`, rejected: true},
-		{name: "a user attribute on groups", target: groups, expression: `userName eq "a"`, rejected: true},
+		{name: "names ignore case", expression: `USERNAME EQ "a"`, total: 1, resources: 1},
+		{name: "nobody", expression: `userName eq "nobody"`},
+		{name: "count 0 reports the total", expression: `userName eq "a"`, paging: "&count=0", total: 1},
+		{name: "past the only result", expression: `userName eq "a"`, paging: "&startIndex=2", total: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend := newFakeBackend()
-			response := do(t, Handler(backend, bearer), "GET", test.target+"?filter="+url.QueryEscape(test.expression), "Bearer "+bearer, "")
-			if test.rejected {
-				if response.Code != http.StatusBadRequest || backend.start != 0 {
-					t.Fatalf("status %d, backend reached %v", response.Code, backend.start != 0)
-				}
-				checkError(t, response, "400", "invalidFilter")
-				return
+			backend.users["u1"] = User{ID: "u1", UserName: "a"}
+			response := do(t, Handler(backend, bearer), "GET", "/scim/v2/Users?filter="+url.QueryEscape(test.expression)+test.paging, "Bearer "+bearer, "")
+			var page Page[User]
+			if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil || response.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", response.Code, response.Body)
 			}
-			if response.Code != http.StatusOK || backend.filter != test.want {
-				t.Fatalf("status %d, backend filter %+v", response.Code, backend.filter)
+			if page.TotalResults != test.total || len(page.Resources) != test.resources {
+				t.Fatalf("page %+v", page)
 			}
+		})
+	}
+	const users, groups = "/scim/v2/Users", "/scim/v2/Groups"
+	for _, test := range []struct{ name, target, expression string }{
+		{"another attribute", users, `displayName eq "a"`},
+		{"an email", users, `emails.value eq "a"`},
+		{"a group", users, `groups.value eq "a"`},
+		{"another operator", users, `userName ne "a"`},
+		{"no value", users, `userName eq`},
+		{"unquoted value", users, `userName eq a`},
+		{"empty value", users, `userName eq ""`},
+		{"two spaces before the value", users, `userName eq  "a"`},
+		{"compound", users, `userName eq "a" and active eq true`},
+		{"value path", users, `emails[value eq "a"]`},
+		{"a user attribute on groups", groups, `userName eq "a"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := do(t, Handler(failingBackend{errors.New("backend reached")}, bearer), "GET", test.target+"?filter="+url.QueryEscape(test.expression), "Bearer "+bearer, "")
+			checkError(t, response, "400", "invalidFilter")
 		})
 	}
 }
@@ -252,7 +260,7 @@ func TestCreateGroup(t *testing.T) {
 	if got := response.Header().Get("Location"); got != "/scim/v2/Groups/g3" {
 		t.Errorf("location %q", got)
 	}
-	if seen := backend.createdGroup; !reflect.DeepEqual(seen, Group{ExternalID: "production/orders:read/install"}) {
+	if seen := backend.createdSet; seen != (identity.PermissionSet{Kind: "production/orders:read", UID: "install"}) {
 		t.Fatalf("backend saw %+v", seen)
 	}
 	var body map[string]any
@@ -314,10 +322,7 @@ func TestRequestsAreValidatedBeforeTheBackend(t *testing.T) {
 
 func TestServiceProviderConfigDocument(t *testing.T) {
 	backend := newFakeBackend()
-	backend.config = ServiceProviderConfig{
-		Patch: Supported{Supported: true}, Filter: Filtering{Supported: true, MaxResults: 200},
-		Holon: Capabilities{Invitations: true, Provider: "holon-cloud"},
-	}
+	backend.capabilities = Capabilities{Invitations: true, Provider: "holon-cloud"}
 	response := do(t, Handler(backend, bearer), "GET", "/scim/v2/ServiceProviderConfig", "Bearer "+bearer, "")
 	if response.Code != http.StatusOK || response.Header().Get("Content-Type") != "application/scim+json" {
 		t.Fatalf("status %d, content type %q", response.Code, response.Header().Get("Content-Type"))

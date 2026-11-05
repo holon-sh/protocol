@@ -45,7 +45,6 @@ type faults struct {
 	leakScope                                            bool
 	openIntrospection, activeUnknownToken                bool
 	mintUnregistered, activeAfterDelete                  bool
-	bulkAdvertised                                       bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
 	noPendingSetup, duplicateUserName, deleteKeeps       bool
 	patchIgnored, membersIgnored                         bool
@@ -467,30 +466,32 @@ func (p *provider) view(user *scim.User) scim.User {
 	return view
 }
 
-func (p *provider) Config(context.Context) (scim.ServiceProviderConfig, error) {
-	return scim.ServiceProviderConfig{
-		Patch: scim.Supported{Supported: true}, Filter: scim.Filtering{Supported: true, MaxResults: 200},
-		Bulk:  scim.Supported{Supported: p.faults.bulkAdvertised},
-		Holon: scim.Capabilities{Invitations: !p.faults.noMail && !p.faults.sentWithoutCapability},
-	}, nil
+func (p *provider) Capabilities(context.Context) (scim.Capabilities, error) {
+	return scim.Capabilities{Invitations: !p.faults.noMail && !p.faults.sentWithoutCapability}, nil
 }
 
-func (p *provider) ListUsers(_ context.Context, filter scim.Filter, start, count int) (scim.Page[scim.User], error) {
+func (p *provider) FindUser(_ context.Context, userName string) (scim.User, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, user := range p.users {
+		view := p.view(user)
+		if p.faults.filterIgnored || view.UserName == userName {
+			return view, nil
+		}
+	}
+	return scim.User{}, scim.ErrNotFound
+}
+
+func (p *provider) ListUsers(_ context.Context, start, count int) (scim.Page[scim.User], error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	var matches []scim.User
 	for _, user := range p.users {
 		view := p.view(user)
-		matched := p.faults.filterIgnored || filter == (scim.Filter{}) ||
-			(filter.UserName != "" && view.UserName == filter.UserName) ||
-			(filter.Email != "" && slices.ContainsFunc(view.Emails, func(e scim.Email) bool { return e.Value == filter.Email })) ||
-			(filter.Group != "" && holdsRef(view.Groups, filter.Group))
-		if matched {
-			if p.faults.listDropsGroups {
-				view.Groups = nil
-			}
-			matches = append(matches, view)
+		if p.faults.listDropsGroups {
+			view.Groups = nil
 		}
+		matches = append(matches, view)
 	}
 	slices.SortFunc(matches, func(a, b scim.User) int { return strings.Compare(a.ID, b.ID) })
 	if p.faults.countIgnored && count != 0 || p.faults.zeroCountReturnsAll && count == 0 {
@@ -569,7 +570,7 @@ func (p *provider) DeleteUser(_ context.Context, id string) error {
 	return nil
 }
 
-func (p *provider) ListGroups(_ context.Context, _ scim.Filter, start, count int) (scim.Page[scim.Group], error) {
+func (p *provider) ListGroups(_ context.Context, start, count int) (scim.Page[scim.Group], error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	groups := []scim.Group{{ID: testGroup, ExternalID: "Session/one", DisplayName: "Session one"}}
@@ -583,18 +584,18 @@ func (p *provider) ListGroups(_ context.Context, _ scim.Filter, start, count int
 	return scim.Page[scim.Group]{TotalResults: len(groups), Resources: groups[from:min(from+count, len(groups))]}, nil
 }
 
-func (p *provider) CreateGroup(_ context.Context, group scim.Group) (scim.Group, error) {
+func (p *provider) CreateGroup(_ context.Context, set identity.PermissionSet) (scim.Group, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	set, _ := group.PermissionSet()
+	externalID := set.Kind + "/" + set.UID
 	if !p.faults.duplicateGroup {
 		for _, existing := range p.groups {
-			if existing.ExternalID == group.ExternalID {
+			if existing.ExternalID == externalID {
 				return scim.Group{}, scim.ErrConflict
 			}
 		}
 	}
-	created := scim.Group{ID: p.id("set-"), ExternalID: group.ExternalID, DisplayName: set.Kind + " " + set.UID}
+	created := scim.Group{ID: p.id("set-"), ExternalID: externalID, DisplayName: set.Kind + " " + set.UID}
 	p.groups = append(p.groups, created)
 	return created, nil
 }
