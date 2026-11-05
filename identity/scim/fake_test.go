@@ -11,16 +11,16 @@ import (
 var _ Backend = (*Client)(nil)
 
 type fakeBackend struct {
-	mu         sync.Mutex
-	next       int
-	users      map[string]User
-	groups     map[string]Group
-	config     ServiceProviderConfig
-	created    User
-	start      int
-	count      int
-	filter     Filter
-	operations []Operation
+	mu           sync.Mutex
+	next         int
+	users        map[string]User
+	groups       map[string]Group
+	config       ServiceProviderConfig
+	created      User
+	createdGroup Group
+	start        int
+	count        int
+	filter       Filter
 }
 
 func newFakeBackend() *fakeBackend {
@@ -88,10 +88,9 @@ func (b *fakeBackend) CreateUser(_ context.Context, user User) (User, error) {
 	return created, nil
 }
 
-func (b *fakeBackend) PatchUser(_ context.Context, id string, patch Patch) (User, error) {
+func (b *fakeBackend) PatchUser(_ context.Context, id string, _ Patch) (User, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.operations = patch.Operations
 	return b.users[id], nil
 }
 
@@ -105,10 +104,16 @@ func (b *fakeBackend) DeleteUser(_ context.Context, id string) error {
 	return nil
 }
 
-func (b *fakeBackend) PatchGroup(_ context.Context, id string, patch Patch) (Group, error) {
+func (b *fakeBackend) CreateGroup(_ context.Context, group Group) (Group, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.operations = patch.Operations
+	b.createdGroup = group
+	return Group{ID: "g3", ExternalID: group.ExternalID, DisplayName: "derived"}, nil
+}
+
+func (b *fakeBackend) PatchGroup(_ context.Context, id string, _ Patch) (Group, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	return b.groups[id], nil
 }
 
@@ -135,6 +140,8 @@ func (b failingBackend) PatchUser(context.Context, string, Patch) (User, error) 
 func (b failingBackend) ListGroups(context.Context, Filter, int, int) (Page[Group], error) {
 	return Page[Group]{}, b.err
 }
+
+func (b failingBackend) CreateGroup(context.Context, Group) (Group, error) { return Group{}, b.err }
 
 func (b failingBackend) PatchGroup(context.Context, string, Patch) (Group, error) {
 	return Group{}, b.err

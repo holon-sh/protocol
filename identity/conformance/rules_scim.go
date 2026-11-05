@@ -181,10 +181,39 @@ func (s *suite) checkSCIMListGroups(ctx context.Context) error {
 			}
 			return nil
 		}
-		if len(page.Resources) == 0 {
+		if start+maxCount > page.TotalResults {
 			return fmt.Errorf("the list does not include %s", person.ID)
 		}
 	}
+}
+
+func (s *suite) checkSCIMCreateGroup(ctx context.Context) error {
+	kind, uid := "Conformance", strings.ToLower(rand.Text())
+	created, err := s.users.CreateGroup(ctx, scim.Group{ExternalID: kind + "/" + uid})
+	if err != nil {
+		return fmt.Errorf("create group: %w", err)
+	}
+	if created.ID == "" || created.ExternalID != kind+"/"+uid || created.DisplayName != kind+" "+uid || len(created.Members) != 0 {
+		return fmt.Errorf("created %+v", created)
+	}
+	_, err = s.users.CreateGroup(ctx, scim.Group{ExternalID: created.ExternalID})
+	if err := wantError("a second create of one externalId", err, scim.ErrConflict); err != nil {
+		return err
+	}
+	for start := 1; ; start += maxCount {
+		page, err := s.users.ListGroups(ctx, scim.Filter{}, start, maxCount)
+		if err != nil {
+			return fmt.Errorf("list groups: %w", err)
+		}
+		if slices.ContainsFunc(page.Resources, func(group scim.Group) bool { return group.ID == created.ID }) {
+			break
+		}
+		if start+maxCount > page.TotalResults {
+			return fmt.Errorf("the list does not include the created group %s", created.ID)
+		}
+	}
+	_, err = s.users.CreateGroup(ctx, scim.Group{ExternalID: kind})
+	return wantError("an externalId without a uid", err, scim.ErrInvalid)
 }
 
 func (s *suite) wantOnly(ctx context.Context, filter scim.Filter, id string) error {

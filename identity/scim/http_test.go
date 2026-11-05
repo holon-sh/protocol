@@ -9,11 +9,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/holon-sh/protocol/identity"
 )
 
 const (
 	bearer      = "secret"
 	userSchema  = `"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"]`
+	groupSchema = `"schemas":["urn:ietf:params:scim:schemas:core:2.0:Group"]`
 	patchSchema = `"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"]`
 )
 
@@ -226,21 +229,6 @@ func TestCreateUser(t *testing.T) {
 			t.Fatalf("backend saw %+v", seen)
 		}
 	})
-	for _, test := range []struct{ name, body, scimType string }{
-		{"missing schema", `{"userName":"a"}`, "invalidSyntax"},
-		{"unknown attribute", `{` + userSchema + `,"userName":"a","nickName":"b"}`, "invalidSyntax"},
-		{"over the body limit", `{` + userSchema + `,"userName":"` + strings.Repeat("a", maxBody) + `"}`, "invalidSyntax"},
-		{"no userName", `{` + userSchema + `}`, "invalidValue"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			backend := newFakeBackend()
-			response := do(t, Handler(backend, bearer), "POST", "/scim/v2/Users", "Bearer "+bearer, test.body)
-			if response.Code != http.StatusBadRequest || len(backend.users) != 0 {
-				t.Fatalf("status %d, users %d", response.Code, len(backend.users))
-			}
-			checkError(t, response, "400", test.scimType)
-		})
-	}
 	t.Run("media type", func(t *testing.T) {
 		request := httptest.NewRequestWithContext(t.Context(), "POST", "https://adapter.example/scim/v2/Users", strings.NewReader(`{`+userSchema+`,"userName":"a"}`))
 		request.Header.Set("Authorization", "Bearer "+bearer)
@@ -254,16 +242,68 @@ func TestCreateUser(t *testing.T) {
 	})
 }
 
-func TestPatchIsValidatedBeforeTheBackend(t *testing.T) {
-	for _, test := range []struct{ name, body, scimType string }{
-		{"missing schema", `{"Operations":[{"op":"replace","path":"active","value":true}]}`, "invalidSyntax"},
-		{"no operations", `{` + patchSchema + `,"Operations":[]}`, "invalidSyntax"},
-		{"unknown op", `{` + patchSchema + `,"Operations":[{"op":"move","path":"active","value":true}]}`, "invalidSyntax"},
-		{"remove without path", `{` + patchSchema + `,"Operations":[{"op":"remove"}]}`, "noTarget"},
-		{"replace without value", `{` + patchSchema + `,"Operations":[{"op":"replace","path":"active"}]}`, "invalidValue"},
+func TestCreateGroup(t *testing.T) {
+	backend := newFakeBackend()
+	response := do(t, Handler(backend, bearer), "POST", "/scim/v2/Groups", "Bearer "+bearer, `{`+groupSchema+`,"id":"chosen","externalId":"production/orders:read/install",`+
+		`"displayName":"Forged","members":[{"value":"u1"}],"meta":{"resourceType":"Forged"}}`)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	if got := response.Header().Get("Location"); got != "/scim/v2/Groups/g3" {
+		t.Errorf("location %q", got)
+	}
+	if seen := backend.createdGroup; !reflect.DeepEqual(seen, Group{ExternalID: "production/orders:read/install"}) {
+		t.Fatalf("backend saw %+v", seen)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{
+		"schemas": []any{"urn:ietf:params:scim:schemas:core:2.0:Group"}, "id": "g3", "externalId": "production/orders:read/install",
+		"displayName": "derived", "meta": map[string]any{"resourceType": "Group"},
+	}
+	if !reflect.DeepEqual(body, want) {
+		t.Errorf("created %v", body)
+	}
+}
+
+func TestGroupPermissionSet(t *testing.T) {
+	for _, test := range []struct {
+		externalID string
+		want       identity.PermissionSet
+		err        error
+	}{
+		{externalID: "production/orders:read/install", want: identity.PermissionSet{Kind: "production/orders:read", UID: "install"}},
+		{externalID: "", err: ErrInvalid},
+		{externalID: "install", err: ErrInvalid},
+		{externalID: "/install", err: ErrInvalid},
+		{externalID: "production/orders:read/", err: ErrInvalid},
+		{externalID: strings.Repeat("k", 257) + "/install", err: ErrInvalid},
+	} {
+		t.Run(test.externalID, func(t *testing.T) {
+			set, err := Group{ExternalID: test.externalID}.PermissionSet()
+			if set != test.want || !errors.Is(err, test.err) {
+				t.Fatalf("PermissionSet() = %+v, %v", set, err)
+			}
+		})
+	}
+}
+
+func TestRequestsAreValidatedBeforeTheBackend(t *testing.T) {
+	for _, test := range []struct{ name, method, target, body, scimType string }{
+		{"create without a schema", "POST", "/scim/v2/Users", `{"userName":"a"}`, "invalidSyntax"},
+		{"create with an unknown attribute", "POST", "/scim/v2/Users", `{` + userSchema + `,"userName":"a","nickName":"b"}`, "invalidSyntax"},
+		{"create over the body limit", "POST", "/scim/v2/Users", `{` + userSchema + `,"userName":"` + strings.Repeat("a", maxBody) + `"}`, "invalidSyntax"},
+		{"create without a userName", "POST", "/scim/v2/Users", `{` + userSchema + `}`, "invalidValue"},
+		{"create group without a set", "POST", "/scim/v2/Groups", `{` + groupSchema + `,"externalId":"install"}`, "invalidValue"},
+		{"patch without operations", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[]}`, "invalidSyntax"},
+		{"patch with an unknown op", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[{"op":"move","path":"active","value":true}]}`, "invalidSyntax"},
+		{"remove without a path", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[{"op":"remove"}]}`, "noTarget"},
+		{"replace without a value", "PATCH", "/scim/v2/Users/u1", `{` + patchSchema + `,"Operations":[{"op":"replace","path":"active"}]}`, "invalidValue"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := do(t, Handler(failingBackend{errors.New("backend reached")}, bearer), "PATCH", "/scim/v2/Users/u1", "Bearer "+bearer, test.body)
+			response := do(t, Handler(failingBackend{errors.New("backend reached")}, bearer), test.method, test.target, "Bearer "+bearer, test.body)
 			if response.Code != http.StatusBadRequest {
 				t.Fatalf("status %d", response.Code)
 			}

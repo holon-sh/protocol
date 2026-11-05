@@ -78,6 +78,9 @@ func Handler(backend Backend, bearer string) http.Handler {
 			return backend.ListGroups(ctx, filter, start, count)
 		}, groupResponse)
 	})
+	mux.HandleFunc("POST /scim/v2/Groups", func(w http.ResponseWriter, r *http.Request) {
+		createGroup(w, r, backend)
+	})
 	mux.HandleFunc("PATCH /scim/v2/Groups/{id}", func(w http.ResponseWriter, r *http.Request) {
 		patch(w, r, backend.PatchGroup, groupResponse)
 	})
@@ -108,6 +111,25 @@ func createUser(w http.ResponseWriter, r *http.Request, backend Backend) {
 	}
 	w.Header().Set("Location", "/scim/v2/Users/"+url.PathEscape(created.ID))
 	respond(w, http.StatusCreated, userResponse(created))
+}
+
+func createGroup(w http.ResponseWriter, r *http.Request, backend Backend) {
+	var request groupResource
+	if !read(w, r, &request, &request.Schemas, schemaGroup) {
+		return
+	}
+	group := Group{ExternalID: request.ExternalID}
+	if _, err := group.PermissionSet(); err != nil {
+		failWith(w, err)
+		return
+	}
+	created, err := backend.CreateGroup(r.Context(), group)
+	if err != nil {
+		failWith(w, err)
+		return
+	}
+	w.Header().Set("Location", "/scim/v2/Groups/"+url.PathEscape(created.ID))
+	respond(w, http.StatusCreated, groupResponse(created))
 }
 
 func list[T, W any](w http.ResponseWriter, r *http.Request, run func(context.Context, Filter, int, int) (Page[T], error), wrap func(T) W) {

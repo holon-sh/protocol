@@ -88,6 +88,7 @@ var rules = []rule{
 	{name: "SCIM list answers each person's groups", check: (*suite).checkSCIMListGroups},
 	{name: "SCIM filter", check: (*suite).checkSCIMFilter},
 	{name: "SCIM create with password", check: (*suite).checkSCIMCreate},
+	{name: "SCIM create group", check: (*suite).checkSCIMCreateGroup},
 	{name: "SCIM patch", check: (*suite).checkSCIMPatch},
 	{name: "SCIM delete", check: (*suite).checkSCIMDelete},
 	{name: "invitation returns a result", check: (*suite).checkInvitation},
