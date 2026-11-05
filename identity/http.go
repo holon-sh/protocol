@@ -37,7 +37,7 @@ func (c *Client) Delete(ctx context.Context, spec Spec) error {
 
 func (c *Client) call(ctx context.Context, operation string, spec Spec) error {
 	body, _ := json.Marshal(registration{Spec: spec})
-	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/resources/"+operation, "application/json", body)
+	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/resources/"+operation, "application/json", "application/json", body)
 	if err != nil {
 		return ErrUnavailable
 	}

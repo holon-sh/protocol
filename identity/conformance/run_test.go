@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/holon-sh/protocol"
-	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
 	"github.com/holon-sh/protocol/identity/scim"
 )
@@ -46,6 +45,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"unregistered scope granted", (*suite).checkClientCredentials, faults{leakScope: true}, unregisteredScope},
 		{"no bearer accepted", (*suite).checkIntrospection, faults{openIntrospection: true}, "no bearer"},
 		{"unknown token active", (*suite).checkIntrospection, faults{activeUnknownToken: true}, "unknown to the issuer"},
+		{"client_id differs", (*suite).checkIntrospection, faults{wrongClientID: true}, "client_id"},
+		{"aud differs", (*suite).checkIntrospection, faults{wrongAudience: true}, "aud"},
 		{"never-registered audience active", (*suite).checkUnregisteredAudience, faults{mintUnregistered: true, activeAfterDelete: true}, "never registered"},
 		{"no resource active", (*suite).checkUnregisteredAudience, faults{noResourceDefaults: true}, "for no resource"},
 		{"active after deletion", (*suite).checkUnregisteredAudience, faults{activeAfterDelete: true}, "before its resource was deleted"},
@@ -55,7 +56,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"no pendingSetup", (*suite).checkSCIMCreate, faults{noPendingSetup: true}, "pendingSetup"},
 		{"duplicate userName accepted", (*suite).checkSCIMCreate, faults{duplicateUserName: true}, "one userName"},
 		{"group created twice", (*suite).checkSCIMCreateGroup, faults{duplicateGroup: true}, "one externalId succeeded"},
-		{"created group unlisted and start ignored", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true, startIgnored: true}, "does not include"},
+		{"created group unlisted", (*suite).checkSCIMCreateGroup, faults{listDropsCreatedGroups: true}, "does not include"},
 		{"patch ignored", (*suite).checkSCIMPatch, faults{patchIgnored: true}, "replace active"},
 		{"members ignored", (*suite).checkSCIMPatch, faults{membersIgnored: true}, "membership"},
 		{"delete keeps the user", (*suite).checkSCIMDelete, faults{deleteKeeps: true}, "after delete"},
@@ -66,6 +67,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"any verifier accepted", (*suite).checkBrowserClient, faults{anyVerifier: true}, "code_verifier"},
 		{"device token issued before sign-in", (*suite).checkCLIClient, faults{deviceApprovedEarly: true}, "before sign-in"},
 		{"no refresh token with offline_access", (*suite).checkCLIClient, faults{deviceNoRefresh: true}, "no refresh token"},
+		{"one person has two subjects", (*suite).checkCLIClient, faults{pairwiseSubject: true}, "at the browser client"},
 		{"refresh answers invalid_grant", (*suite).checkRefreshResource, faults{refreshInvalidGrant: true}, "invalid_grant"},
 		{"second cli refresh loses the audience", (*suite).checkRefreshResource, faults{cliRefreshLosesAudience: true}, "cli client: access token of refresh 2"},
 		{"cli refresh serves another resource", (*suite).checkRefreshResource, faults{cliRefreshAnyResource: true}, "cli client: refresh for another resource succeeded"},
@@ -205,7 +207,6 @@ func TestDiscoveryValidate(t *testing.T) {
 	for name, change := range map[string]func(*discovery){
 		"no authorization":       func(d *discovery) { d.AuthorizationEndpoint = "" },
 		"no device":              func(d *discovery) { d.DeviceAuthorizationEndpoint = "" },
-		"no token":               func(d *discovery) { d.TokenEndpoint = "" },
 		"no revocation":          func(d *discovery) { d.RevocationEndpoint = "" },
 		"no end session":         func(d *discovery) { d.EndSessionEndpoint = "" },
 		"no jwks":                func(d *discovery) { d.JWKSURI = "" },
@@ -217,32 +218,6 @@ func TestDiscoveryValidate(t *testing.T) {
 			document := valid
 			change(&document)
 			if err := document.validate("https://issuer.example"); err == nil {
-				t.Fatal("accepted")
-			}
-		})
-	}
-}
-
-func TestCheckActive(t *testing.T) {
-	now := time.Unix(1000, 0)
-	valid := introspection.Result{
-		Active: true, Issuer: "iss", Subject: "sub", ClientID: "client", Expiry: 2000, Audience: []string{"aud"},
-	}
-	if err := checkActive(valid, "iss", "client", "aud", now); err != nil {
-		t.Fatal(err)
-	}
-	for name, change := range map[string]func(*introspection.Result){
-		"inactive":      func(r *introspection.Result) { r.Active = false },
-		"issuer":        func(r *introspection.Result) { r.Issuer = "other" },
-		"no subject":    func(r *introspection.Result) { r.Subject = "" },
-		"client":        func(r *introspection.Result) { r.ClientID = "other" },
-		"expired":       func(r *introspection.Result) { r.Expiry = 1000 },
-		"two audiences": func(r *introspection.Result) { r.Audience = []string{"aud", "other"} },
-	} {
-		t.Run(name, func(t *testing.T) {
-			result := valid
-			change(&result)
-			if err := checkActive(result, "iss", "client", "aud", now); err == nil {
 				t.Fatal("accepted")
 			}
 		})

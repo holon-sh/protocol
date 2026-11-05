@@ -35,7 +35,7 @@ func NewClient(endpoint, bearer string, transport *http.Client) (*Client, error)
 // ErrUnavailable.
 func (c *Client) Invite(ctx context.Context, invitation Invitation) (Result, error) {
 	body, _ := json.Marshal(invitation)
-	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/invitations", mediaType, body)
+	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/invitations", mediaType, mediaType, body)
 	if err != nil {
 		return Result{}, ErrUnavailable
 	}

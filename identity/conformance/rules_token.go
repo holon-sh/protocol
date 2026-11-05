@@ -49,7 +49,11 @@ func (s *suite) checkIntrospection(ctx context.Context) error {
 		return err
 	}
 	for _, caller := range []struct{ name, credential string }{{"no bearer", ""}, {"a wrong bearer", s.cfg.Bearer + "x"}} {
-		_, err := s.introspect(ctx, caller.credential, issued.AccessToken)
+		err := s.postForm(ctx, strings.TrimSuffix(s.cfg.Adapter, "/")+"/introspect", url.Values{"token": {issued.AccessToken}}, func(req *http.Request) {
+			if caller.credential != "" {
+				req.Header.Set("Authorization", "Bearer "+caller.credential)
+			}
+		}, &struct{}{})
 		var refused *rejection
 		switch {
 		case err == nil:

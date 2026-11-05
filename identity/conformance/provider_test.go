@@ -51,6 +51,8 @@ type faults struct {
 	wrongIssuer                                          bool
 	leakScope                                            bool
 	openIntrospection, activeUnknownToken                bool
+	wrongClientID, wrongAudience                         bool
+	pairwiseSubject                                      bool
 	mintUnregistered, activeAfterDelete                  bool
 	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
@@ -61,7 +63,6 @@ type faults struct {
 	listDropsGroups                                      bool
 	duplicateGroup                                       bool
 	listDropsCreatedGroups                               bool
-	startIgnored                                         bool
 	anyVerifier                                          bool
 	deviceApprovedEarly, deviceNoRefresh                 bool
 	noCompleteVerificationURI, slowDownOnce              bool
@@ -407,11 +408,23 @@ func (p *provider) introspect(w http.ResponseWriter, r *http.Request) {
 	token, known := p.tokens[r.PostForm.Get("token")]
 	generation, registered := p.generations[token.audience]
 	active := known && (p.faults.activeAfterDelete || (registered && generation == token.generation))
-	result := introspection.Result{Active: !known && p.faults.activeUnknownToken}
+	if !known && p.faults.activeUnknownToken {
+		token, active = record{client: serviceClient, subject: "service", audience: testResource}, true
+	}
+	if p.faults.wrongClientID {
+		token.client = "another client"
+	}
+	if p.faults.wrongAudience {
+		token.audience = "https://another.example.test/"
+	}
+	if p.faults.pairwiseSubject && token.client == cliClient {
+		token.subject = "pairwise " + token.subject
+	}
+	var result introspection.Result
 	if active {
 		result = introspection.Result{
-			Active: true, TokenType: "Bearer", Issuer: p.issuer.URL, Subject: token.subject, ClientID: token.client,
-			Expiry: p.now().Add(time.Hour).Unix(), Audience: []string{token.audience}, Scope: token.scope,
+			Active: true, Issuer: p.issuer.URL, Subject: token.subject, ClientID: token.client,
+			Expiry: p.now().Add(time.Hour).Unix(), Audience: token.audience, Scope: token.scope,
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -631,9 +644,6 @@ func (p *provider) ListGroups(_ context.Context, start, count int) (scim.Page[sc
 	groups := []scim.Group{{ID: testGroup, ExternalID: "Session/one", DisplayName: "Session one"}}
 	if !p.faults.listDropsCreatedGroups {
 		groups = append(groups, p.groups...)
-	}
-	if p.faults.startIgnored {
-		start = 1
 	}
 	from := min(start-1, len(groups))
 	return scim.Page[scim.Group]{TotalResults: len(groups), Resources: groups[from:min(from+count, len(groups))]}, nil

@@ -4,8 +4,9 @@
 //
 //   - Clients. The browser client is confidential and uses the authorization code grant with PKCE S256,
 //     [RFC 6749 §4.1] and [RFC 7636 §4.2]. The cli client is public and uses the device authorization grant,
-//     [RFC 8628 §3], with offline_access. A service account uses client credentials, [RFC 6749 §4.4]; the
-//     conformance suite is given one.
+//     [RFC 8628 §3], with offline_access. One person has one sub at both, the public subject type of
+//     [OpenID Connect Core 1.0 §8]. A service account uses client credentials, [RFC 6749 §4.4]; the conformance suite
+//     is given one.
 //   - Resource. Every authorization, device and token request carries exactly one resource parameter,
 //     [RFC 8707 §2]. The access token's aud is that resource and nothing else, [RFC 8707 §2.2]. A token requested
 //     for no resource or an unregistered one is inactive or refused with invalid_target, and a refresh naming a
@@ -21,8 +22,9 @@
 //     none.
 //   - Invitations. An invitation link is valid for its Lifetime and no longer, and is refused once the person
 //     has finished setting up.
-//   - Introspection. The adapter answers [RFC 7662 §2.2] with active, iss, sub, client_id, exp, aud and scope,
-//     and authenticates the caller by the shared bearer, which [RFC 7662 §2.1] allows.
+//   - Introspection. The adapter answers [RFC 7662 §2.2] with active, token_type Bearer, iss, sub, client_id, exp,
+//     aud as one string, and scope in the format of [RFC 6749 §3.3] unless it is empty, and authenticates the caller by
+//     the shared bearer, which [RFC 7662 §2.1] allows. A token of any other type is not active.
 //   - Revocation. The issuer advertises revocation_endpoint, [RFC 8414 §2], and accepts [RFC 7009 §2.1] from the
 //     cli client with its client_id and no credential. A revoked refresh token is refused with invalid_grant on
 //     its next use, [RFC 6749 §5.2].
@@ -35,6 +37,7 @@
 //   - Discovery. {issuer}/.well-known/openid-configuration serves [OpenID Connect Discovery 1.0 §4]. Holon reads
 //     the authorization, device, token, revocation and end-session endpoints from it and nowhere else.
 //
+// [RFC 6749 §3.3]: https://www.rfc-editor.org/rfc/rfc6749.html#section-3.3
 // [RFC 6749 §4.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
 // [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
@@ -48,6 +51,7 @@
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 // [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
+// [OpenID Connect Core 1.0 §8]: https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 // [OpenID Connect Discovery 1.0 §4]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout

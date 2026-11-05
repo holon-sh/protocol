@@ -210,7 +210,7 @@ func (s *suite) checkSCIMFilter(ctx context.Context) error {
 //
 // [RFC 7644 §3.12]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.12
 func (s *suite) wantInvalidFilter(ctx context.Context) error {
-	response, err := s.adapter.Do(ctx, http.MethodGet, "/scim/v2/Users?"+url.Values{"filter": {`displayName eq "x"`}}.Encode(), scimMediaType, nil)
+	response, err := s.adapter.Do(ctx, http.MethodGet, "/scim/v2/Users?"+url.Values{"filter": {`displayName eq "x"`}}.Encode(), scimMediaType, "", nil)
 	if err != nil {
 		return err
 	}

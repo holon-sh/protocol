@@ -256,59 +256,27 @@ func (s *suite) browserToken(ctx context.Context, scope string) (token, error) {
 	return s.redeem(ctx, issued)
 }
 
-// introspect posts value to the adapter as [RFC 7662 §2.1] describes and answers the [RFC 7662 §2.2] result. A
-// status other than 200 is *rejection, which carries the challenge.
-//
-// [RFC 7662 §2.1]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.1
-// [RFC 7662 §2.2]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.2
-func (s *suite) introspect(ctx context.Context, credential, value string) (introspection.Result, error) {
-	var result introspection.Result
-	err := s.postForm(ctx, strings.TrimSuffix(s.cfg.Adapter, "/")+"/introspect", url.Values{"token": {value}}, func(req *http.Request) {
-		if credential != "" {
-			req.Header.Set("Authorization", "Bearer "+credential)
-		}
-	}, &result)
-	return result, err
-}
-
 func (s *suite) wantActive(ctx context.Context, value, clientID, audience string) (introspection.Result, error) {
-	result, err := s.introspect(ctx, s.cfg.Bearer, value)
+	result, err := s.introspector.Introspect(ctx, value)
 	if err != nil {
 		return result, err
 	}
-	return result, checkActive(result, s.cfg.Issuer, clientID, audience, time.Now())
+	if err := result.Check(s.cfg.Issuer, time.Now(), audience); err != nil {
+		return result, err
+	}
+	if result.ClientID != clientID {
+		return result, fmt.Errorf("client_id %q, want %q", result.ClientID, clientID)
+	}
+	return result, nil
 }
 
 func (s *suite) wantInactive(ctx context.Context, value, description string) error {
-	result, err := s.introspect(ctx, s.cfg.Bearer, value)
+	result, err := s.introspector.Introspect(ctx, value)
 	if err != nil {
 		return err
 	}
 	if result.Active {
 		return fmt.Errorf("a token %s is active", description)
-	}
-	return nil
-}
-
-// checkActive holds result to the fields the profile requires of [RFC 7662 §2.2] and the exact audience of
-// [RFC 8707 §2.2].
-//
-// [RFC 7662 §2.2]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.2
-// [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
-func checkActive(result introspection.Result, issuer, clientID, audience string, now time.Time) error {
-	switch {
-	case !result.Active:
-		return errors.New("token is inactive")
-	case result.Issuer != issuer:
-		return fmt.Errorf("iss %q, want %q", result.Issuer, issuer)
-	case result.Subject == "":
-		return errors.New("sub is missing")
-	case result.ClientID != clientID:
-		return fmt.Errorf("client_id %q, want %q", result.ClientID, clientID)
-	case result.Expiry <= now.Unix():
-		return fmt.Errorf("exp %d is not in the future", result.Expiry)
-	case !slices.Equal(result.Audience, []string{audience}):
-		return fmt.Errorf("aud %q, want exactly %q", result.Audience, audience)
 	}
 	return nil
 }

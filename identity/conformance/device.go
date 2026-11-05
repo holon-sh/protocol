@@ -80,20 +80,20 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	if issued.RefreshToken == "" {
 		return token{}, errors.New("the device grant with offline_access issued no refresh token")
 	}
-	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource); err != nil {
-		return token{}, err
-	}
 	return issued, nil
 }
 
-// checkCLIClient takes a device grant, refreshes, so that a refusal below can only come from revocation, revokes
-// the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of [RFC 6749 §5.2] from using
-// it.
+// checkCLIClient takes a device grant and expects the person to hold the sub they hold at the browser client, the
+// public subject type of [OpenID Connect Core 1.0 §8]. It then refreshes, so that a refusal below can only come
+// from revocation, revokes the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of
+// [RFC 6749 §5.2] from using it.
 //
+// [OpenID Connect Core 1.0 §8]: https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 func (s *suite) checkCLIClient(ctx context.Context) error {
 	client := oauthClient{id: s.cfg.CLIClientID}
+	resource := s.cfg.Resource.Audience
 	document, err := s.discover(ctx)
 	if err != nil {
 		return err
@@ -102,7 +102,22 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {s.cfg.Resource.Audience}}
+	cli, err := s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource)
+	if err != nil {
+		return err
+	}
+	signedIn, err := s.browserToken(ctx, s.resourceScope())
+	if err != nil {
+		return err
+	}
+	browser, err := s.wantActive(ctx, signedIn.AccessToken, s.cfg.BrowserClientID, resource)
+	if err != nil {
+		return err
+	}
+	if browser.Subject != cli.Subject {
+		return fmt.Errorf("one person has sub %q at the cli client and %q at the browser client", cli.Subject, browser.Subject)
+	}
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
 	refreshed, err := s.exchange(ctx, client, refresh)
 	if err != nil {
 		return fmt.Errorf("refresh before revocation: %w", err)
