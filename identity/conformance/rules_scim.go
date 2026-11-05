@@ -12,14 +12,13 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/holon-sh/protocol/identity"
 	"github.com/holon-sh/protocol/identity/scim"
 )
 
 const (
-	serviceProviderConfigSchema = "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"
-	capabilitiesSchema          = "urn:holon:params:scim:schemas:extension:capabilities:1.0"
-	scimMediaType               = "application/scim+json"
-	maxCount                    = 200
+	scimMediaType = "application/scim+json"
+	maxCount      = 200
 )
 
 var personName = scim.Name{GivenName: "Conformance", FamilyName: "Test"}
@@ -48,7 +47,7 @@ func (s *suite) deleteUser(ctx context.Context, id string) {
 }
 
 func (s *suite) permissionGroup(ctx context.Context) (scim.Group, error) {
-	groups, err := s.users.ListGroups(ctx, scim.Filter{}, 1, 1)
+	groups, err := s.users.ListGroups(ctx, 1, 1)
 	if err != nil {
 		return scim.Group{}, fmt.Errorf("list groups: %w", err)
 	}
@@ -90,33 +89,6 @@ func holdsRef(refs []scim.Ref, value string) bool {
 	return slices.ContainsFunc(refs, func(ref scim.Ref) bool { return ref.Value == value })
 }
 
-func (s *suite) checkSCIMConfig(ctx context.Context) error {
-	config, err := s.users.Config(ctx)
-	if err != nil {
-		return err
-	}
-	return validateConfig(config)
-}
-
-// validateConfig holds the document of [RFC 7643 §5] to what Holon relies on.
-//
-// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
-func validateConfig(config scim.ServiceProviderConfig) error {
-	switch {
-	case !slices.Contains(config.Schemas, serviceProviderConfigSchema) || !slices.Contains(config.Schemas, capabilitiesSchema):
-		return fmt.Errorf("schemas %q", config.Schemas)
-	case !config.Patch.Supported:
-		return errors.New("patch is not supported")
-	case !config.Filter.Supported:
-		return errors.New("filter is not supported")
-	case config.Filter.MaxResults < 1 || config.Filter.MaxResults > maxCount:
-		return fmt.Errorf("filter.maxResults %d is not in 1..%d", config.Filter.MaxResults, maxCount)
-	case config.Bulk.Supported || config.Sort.Supported:
-		return errors.New("bulk and sort are advertised but the SCIM subset does not serve them")
-	}
-	return nil
-}
-
 func (s *suite) checkSCIMList(ctx context.Context) error {
 	for range 2 {
 		person, err := s.createPerson(ctx, temporaryPassword())
@@ -125,28 +97,28 @@ func (s *suite) checkSCIMList(ctx context.Context) error {
 		}
 		defer s.deleteUser(ctx, person.ID)
 	}
-	first, err := s.users.ListUsers(ctx, scim.Filter{}, 1, 1)
+	first, err := s.users.ListUsers(ctx, 1, 1)
 	if err != nil {
 		return fmt.Errorf("first page: %w", err)
 	}
 	if first.TotalResults < 2 || first.StartIndex != 1 || first.ItemsPerPage != 1 || len(first.Resources) != 1 {
 		return fmt.Errorf("first page of one: %+v", first)
 	}
-	second, err := s.users.ListUsers(ctx, scim.Filter{}, 2, 1)
+	second, err := s.users.ListUsers(ctx, 2, 1)
 	if err != nil {
 		return fmt.Errorf("second page: %w", err)
 	}
 	if second.StartIndex != 2 || len(second.Resources) != 1 || second.Resources[0].ID == first.Resources[0].ID {
 		return fmt.Errorf("second page of one: %+v after %+v", second, first)
 	}
-	total, err := s.users.ListUsers(ctx, scim.Filter{}, 1, 0)
+	total, err := s.users.ListUsers(ctx, 1, 0)
 	if err != nil {
 		return fmt.Errorf("count 0: %w", err)
 	}
 	if total.TotalResults < 2 || len(total.Resources) != 0 {
 		return fmt.Errorf("count 0 must report only the total: %+v", total)
 	}
-	capped, err := s.users.ListUsers(ctx, scim.Filter{}, 1, maxCount+1)
+	capped, err := s.users.ListUsers(ctx, 1, maxCount+1)
 	if err != nil {
 		return fmt.Errorf("count above the cap: %w", err)
 	}
@@ -171,7 +143,7 @@ func (s *suite) checkSCIMListGroups(ctx context.Context) error {
 	}
 	defer func() { _, _ = s.users.PatchGroup(ctx, group.ID, removeMember(person.ID)) }()
 	for start := 1; ; start += maxCount {
-		page, err := s.users.ListUsers(ctx, scim.Filter{}, start, maxCount)
+		page, err := s.users.ListUsers(ctx, start, maxCount)
 		if err != nil {
 			return fmt.Errorf("list: %w", err)
 		}
@@ -189,19 +161,20 @@ func (s *suite) checkSCIMListGroups(ctx context.Context) error {
 
 func (s *suite) checkSCIMCreateGroup(ctx context.Context) error {
 	kind, uid := "Conformance", strings.ToLower(rand.Text())
-	created, err := s.users.CreateGroup(ctx, scim.Group{ExternalID: kind + "/" + uid})
+	set := identity.PermissionSet{Kind: kind, UID: uid}
+	created, err := s.users.CreateGroup(ctx, set)
 	if err != nil {
 		return fmt.Errorf("create group: %w", err)
 	}
 	if created.ID == "" || created.ExternalID != kind+"/"+uid || created.DisplayName != kind+" "+uid || len(created.Members) != 0 {
 		return fmt.Errorf("created %+v", created)
 	}
-	_, err = s.users.CreateGroup(ctx, scim.Group{ExternalID: created.ExternalID})
+	_, err = s.users.CreateGroup(ctx, set)
 	if err := wantError("a second create of one externalId", err, scim.ErrConflict); err != nil {
 		return err
 	}
 	for start := 1; ; start += maxCount {
-		page, err := s.users.ListGroups(ctx, scim.Filter{}, start, maxCount)
+		page, err := s.users.ListGroups(ctx, start, maxCount)
 		if err != nil {
 			return fmt.Errorf("list groups: %w", err)
 		}
@@ -212,19 +185,8 @@ func (s *suite) checkSCIMCreateGroup(ctx context.Context) error {
 			return fmt.Errorf("the list does not include the created group %s", created.ID)
 		}
 	}
-	_, err = s.users.CreateGroup(ctx, scim.Group{ExternalID: kind})
+	_, err = s.users.CreateGroup(ctx, identity.PermissionSet{Kind: kind})
 	return wantError("an externalId without a uid", err, scim.ErrInvalid)
-}
-
-func (s *suite) wantOnly(ctx context.Context, filter scim.Filter, id string) error {
-	page, err := s.users.ListUsers(ctx, filter, 1, maxCount)
-	if err != nil {
-		return fmt.Errorf("filter %+v: %w", filter, err)
-	}
-	if page.TotalResults != 1 || len(page.Resources) != 1 || page.Resources[0].ID != id {
-		return fmt.Errorf("filter %+v matched %d resources, want only %s", filter, page.TotalResults, id)
-	}
-	return nil
 }
 
 func (s *suite) checkSCIMFilter(ctx context.Context) error {
@@ -233,33 +195,13 @@ func (s *suite) checkSCIMFilter(ctx context.Context) error {
 		return err
 	}
 	defer s.deleteUser(ctx, person.ID)
-	if err := s.wantOnly(ctx, scim.Filter{UserName: person.UserName}, person.ID); err != nil {
+	found, err := s.users.FindUser(ctx, person.UserName)
+	if err != nil || found.ID != person.ID {
+		return fmt.Errorf("filter on the userName of %s found %+v, %v", person.ID, found, err)
+	}
+	_, err = s.users.FindUser(ctx, uniqueEmail())
+	if err := wantError("a filter matching nobody", err, scim.ErrNotFound); err != nil {
 		return err
-	}
-	if err := s.wantOnly(ctx, scim.Filter{Email: person.UserName}, person.ID); err != nil {
-		return err
-	}
-	none, err := s.users.ListUsers(ctx, scim.Filter{UserName: uniqueEmail()}, 1, maxCount)
-	if err != nil {
-		return err
-	}
-	if none.TotalResults != 0 || len(none.Resources) != 0 {
-		return fmt.Errorf("a filter matching nobody returned %d resources", none.TotalResults)
-	}
-	group, err := s.permissionGroup(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := s.users.PatchGroup(ctx, group.ID, addMember(person.ID)); err != nil {
-		return fmt.Errorf("add member: %w", err)
-	}
-	defer func() { _, _ = s.users.PatchGroup(ctx, group.ID, removeMember(person.ID)) }()
-	members, err := s.users.ListUsers(ctx, scim.Filter{Group: group.ID}, 1, maxCount)
-	if err != nil {
-		return fmt.Errorf("groups.value filter: %w", err)
-	}
-	if !slices.ContainsFunc(members.Resources, func(user scim.User) bool { return user.ID == person.ID }) {
-		return fmt.Errorf("groups.value eq %q did not return the member", group.ID)
 	}
 	return s.wantInvalidFilter(ctx)
 }

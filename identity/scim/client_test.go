@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/holon-sh/protocol/identity"
 )
 
 func serve(t *testing.T, backend Backend) *Client {
@@ -27,23 +29,16 @@ func TestClientReachesAnIDWithReservedCharacters(t *testing.T) {
 	}
 }
 
-func TestClientFilters(t *testing.T) {
-	t.Run("userName with a quote", func(t *testing.T) {
-		backend := newFakeBackend()
-		filter := Filter{UserName: `a"b@example.test`}
-		if _, err := serve(t, backend).ListUsers(t.Context(), filter, 1, 50); err != nil {
-			t.Fatal(err)
-		}
-		if backend.filter != filter {
-			t.Fatalf("backend filter %+v", backend.filter)
-		}
-	})
-	t.Run("two terms are not sent", func(t *testing.T) {
-		_, err := serve(t, failingBackend{errors.New("backend reached")}).ListUsers(t.Context(), Filter{UserName: "a", Group: "b"}, 1, 1)
-		if !errors.Is(err, ErrFilter) {
-			t.Fatalf("list: %v", err)
-		}
-	})
+func TestClientFindsAUser(t *testing.T) {
+	backend := newFakeBackend()
+	backend.users["u1"] = User{ID: "u1", UserName: `a"b@example.test`}
+	client := serve(t, backend)
+	if user, err := client.FindUser(t.Context(), `a"b@example.test`); err != nil || user.ID != "u1" {
+		t.Fatalf("found %+v, %v", user, err)
+	}
+	if _, err := client.FindUser(t.Context(), "nobody@example.test"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("nobody: %v", err)
+	}
 }
 
 func TestClientMapsErrors(t *testing.T) {
@@ -52,7 +47,6 @@ func TestClientMapsErrors(t *testing.T) {
 		err  error
 		want error
 	}{
-		{"filter", ErrFilter, ErrFilter},
 		{"invalid", ErrInvalid, ErrInvalid},
 		{"not found", ErrNotFound, ErrNotFound},
 		{"conflict", ErrConflict, ErrConflict},
@@ -62,16 +56,17 @@ func TestClientMapsErrors(t *testing.T) {
 			client := serve(t, failingBackend{test.err})
 			ctx := t.Context()
 			remove := Patch{Operations: []Operation{{Op: "remove", Path: "x"}}}
-			_, configErr := client.Config(ctx)
+			_, capabilitiesErr := client.Capabilities(ctx)
+			_, findErr := client.FindUser(ctx, "a")
 			_, getErr := client.GetUser(ctx, "u1")
 			_, createErr := client.CreateUser(ctx, User{UserName: "a"})
-			_, listErr := client.ListUsers(ctx, Filter{}, 1, 1)
-			_, groupsErr := client.ListGroups(ctx, Filter{}, 1, 1)
-			_, createGroupErr := client.CreateGroup(ctx, Group{ExternalID: "Session/one"})
+			_, listErr := client.ListUsers(ctx, 1, 1)
+			_, groupsErr := client.ListGroups(ctx, 1, 1)
+			_, createGroupErr := client.CreateGroup(ctx, identity.PermissionSet{Kind: "Session", UID: "one"})
 			_, patchErr := client.PatchUser(ctx, "u1", remove)
 			_, patchGroupErr := client.PatchGroup(ctx, "g1", remove)
 			for name, err := range map[string]error{
-				"config": configErr, "get": getErr, "create": createErr, "list": listErr, "groups": groupsErr, "create group": createGroupErr,
+				"capabilities": capabilitiesErr, "find": findErr, "get": getErr, "create": createErr, "list": listErr, "groups": groupsErr, "create group": createGroupErr,
 				"patch": patchErr, "patch group": patchGroupErr, "delete": client.DeleteUser(ctx, "u1"),
 			} {
 				if !errors.Is(err, test.want) {

@@ -16,7 +16,7 @@ const (
 )
 
 func (s *suite) checkInvitation(ctx context.Context) error {
-	config, err := s.users.Config(ctx)
+	capabilities, err := s.users.Capabilities(ctx)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (s *suite) checkInvitation(ctx context.Context) error {
 		return fmt.Errorf("invite: %w", err)
 	}
 	defer s.deleteUser(ctx, result.UserID)
-	if err := validateResult(result, config.Holon, request.Lifetime, time.Now()); err != nil {
+	if err := validateResult(result, capabilities, request.Lifetime, time.Now()); err != nil {
 		return err
 	}
 	user, err := s.users.GetUser(ctx, result.UserID)

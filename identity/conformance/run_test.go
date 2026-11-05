@@ -47,11 +47,9 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"unknown token active", (*suite).checkIntrospection, faults{activeUnknownToken: true}, "unknown to the issuer"},
 		{"never-registered audience active", (*suite).checkUnregisteredAudience, faults{mintUnregistered: true, activeAfterDelete: true}, "never registered"},
 		{"active after deletion", (*suite).checkUnregisteredAudience, faults{activeAfterDelete: true}, "before its resource was deleted"},
-		{"bulk advertised", (*suite).checkSCIMConfig, faults{bulkAdvertised: true}, "bulk"},
 		{"count ignored", (*suite).checkSCIMList, faults{countIgnored: true}, "first page"},
 		{"zero count returns resources", (*suite).checkSCIMList, faults{zeroCountReturnsAll: true}, "count 0"},
 		{"filter ignored", (*suite).checkSCIMFilter, faults{filterIgnored: true}, "filter"},
-		{"members ignored by the filter", (*suite).checkSCIMFilter, faults{membersIgnored: true}, "groups.value"},
 		{"no pendingSetup", (*suite).checkSCIMCreate, faults{noPendingSetup: true}, "pendingSetup"},
 		{"duplicate userName accepted", (*suite).checkSCIMCreate, faults{duplicateUserName: true}, "one userName"},
 		{"group created twice", (*suite).checkSCIMCreateGroup, faults{duplicateGroup: true}, "one externalId succeeded"},
@@ -296,33 +294,6 @@ func TestValidateResult(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if err := validateResult(test.result, test.capabilities, time.Hour, now); (err == nil) != test.valid {
 				t.Fatalf("validateResult = %v, want valid %v", err, test.valid)
-			}
-		})
-	}
-}
-
-func TestValidateConfig(t *testing.T) {
-	valid := scim.ServiceProviderConfig{
-		Schemas: []string{serviceProviderConfigSchema, capabilitiesSchema},
-		Patch:   scim.Supported{Supported: true}, Filter: scim.Filtering{Supported: true, MaxResults: 200},
-	}
-	if err := validateConfig(valid); err != nil {
-		t.Fatal(err)
-	}
-	for name, change := range map[string]func(*scim.ServiceProviderConfig){
-		"no capabilities schema": func(c *scim.ServiceProviderConfig) { c.Schemas = []string{serviceProviderConfigSchema} },
-		"no core schema":         func(c *scim.ServiceProviderConfig) { c.Schemas = []string{capabilitiesSchema} },
-		"no patch":               func(c *scim.ServiceProviderConfig) { c.Patch.Supported = false },
-		"no filter":              func(c *scim.ServiceProviderConfig) { c.Filter.Supported = false },
-		"no max results":         func(c *scim.ServiceProviderConfig) { c.Filter.MaxResults = 0 },
-		"too many results":       func(c *scim.ServiceProviderConfig) { c.Filter.MaxResults = 201 },
-		"sort":                   func(c *scim.ServiceProviderConfig) { c.Sort.Supported = true },
-	} {
-		t.Run(name, func(t *testing.T) {
-			config := valid
-			change(&config)
-			if err := validateConfig(config); err == nil {
-				t.Fatal("accepted")
 			}
 		})
 	}

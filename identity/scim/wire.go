@@ -75,3 +75,33 @@ func (p Patch) scimType() string {
 	}
 	return ""
 }
+
+// serviceProviderConfig is [RFC 7643 §5] plus Holon's capabilities extension. Handler sets Schemas, so a
+// backend leaves it empty.
+//
+// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
+type serviceProviderConfig struct {
+	Schemas        []string     `json:"schemas"`
+	Patch          supported    `json:"patch"`
+	Bulk           supported    `json:"bulk"`
+	Filter         filtering    `json:"filter"`
+	ChangePassword supported    `json:"changePassword"`
+	Sort           supported    `json:"sort"`
+	ETag           supported    `json:"etag"`
+	Holon          Capabilities `json:"urn:holon:params:scim:schemas:extension:capabilities:1.0"`
+}
+
+// supported is a boolean capability of [RFC 7643 §5].
+//
+// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
+type supported struct {
+	Supported bool `json:"supported"`
+}
+
+// filtering is the filter capability of [RFC 7643 §5].
+//
+// [RFC 7643 §5]: https://www.rfc-editor.org/rfc/rfc7643.html#section-5
+type filtering struct {
+	Supported  bool `json:"supported"`
+	MaxResults int  `json:"maxResults"`
+}

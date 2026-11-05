@@ -38,16 +38,19 @@ const (
 func Handler(backend Backend, bearer string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /scim/v2/ServiceProviderConfig", func(w http.ResponseWriter, r *http.Request) {
-		config, err := backend.Config(r.Context())
+		capabilities, err := backend.Capabilities(r.Context())
 		if err != nil {
 			failWith(w, err)
 			return
 		}
-		config.Schemas = []string{schemaServiceProviderConfig, schemaCapabilities}
-		respond(w, http.StatusOK, config)
+		respond(w, http.StatusOK, serviceProviderConfig{
+			Schemas: []string{schemaServiceProviderConfig, schemaCapabilities},
+			Patch:   supported{Supported: true}, Filter: filtering{Supported: true, MaxResults: maxCount},
+			Holon: capabilities,
+		})
 	})
 	mux.HandleFunc("GET /scim/v2/Users", func(w http.ResponseWriter, r *http.Request) {
-		list(w, r, backend.ListUsers, userResponse)
+		listUsers(w, r, backend)
 	})
 	mux.HandleFunc("POST /scim/v2/Users", func(w http.ResponseWriter, r *http.Request) {
 		createUser(w, r, backend)
@@ -71,12 +74,11 @@ func Handler(backend Backend, bearer string) http.Handler {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /scim/v2/Groups", func(w http.ResponseWriter, r *http.Request) {
-		list(w, r, func(ctx context.Context, filter Filter, start, count int) (Page[Group], error) {
-			if filter != (Filter{}) {
-				return Page[Group]{}, ErrFilter
-			}
-			return backend.ListGroups(ctx, filter, start, count)
-		}, groupResponse)
+		if r.URL.Query().Get("filter") != "" {
+			failFilter(w)
+			return
+		}
+		list(w, r, backend.ListGroups, groupResponse)
 	})
 	mux.HandleFunc("POST /scim/v2/Groups", func(w http.ResponseWriter, r *http.Request) {
 		createGroup(w, r, backend)
@@ -118,12 +120,12 @@ func createGroup(w http.ResponseWriter, r *http.Request, backend Backend) {
 	if !read(w, r, &request, &request.Schemas, schemaGroup) {
 		return
 	}
-	group := Group{ExternalID: request.ExternalID}
-	if _, err := group.PermissionSet(); err != nil {
+	set, err := Group{ExternalID: request.ExternalID}.PermissionSet()
+	if err != nil {
 		failWith(w, err)
 		return
 	}
-	created, err := backend.CreateGroup(r.Context(), group)
+	created, err := backend.CreateGroup(r.Context(), set)
 	if err != nil {
 		failWith(w, err)
 		return
@@ -132,19 +134,38 @@ func createGroup(w http.ResponseWriter, r *http.Request, backend Backend) {
 	respond(w, http.StatusCreated, groupResponse(created))
 }
 
-func list[T, W any](w http.ResponseWriter, r *http.Request, run func(context.Context, Filter, int, int) (Page[T], error), wrap func(T) W) {
-	query := r.URL.Query()
-	filter, err := parseFilter(query.Get("filter"))
+func listUsers(w http.ResponseWriter, r *http.Request, backend Backend) {
+	expression := r.URL.Query().Get("filter")
+	if expression == "" {
+		list(w, r, backend.ListUsers, userResponse)
+		return
+	}
+	userName, ok := parseUserName(expression)
+	if !ok {
+		failFilter(w)
+		return
+	}
+	list(w, r, func(ctx context.Context, start, count int) (Page[User], error) {
+		user, err := backend.FindUser(ctx, userName)
+		switch {
+		case errors.Is(err, ErrNotFound):
+			return Page[User]{}, nil
+		case err != nil:
+			return Page[User]{}, err
+		case start > 1 || count == 0:
+			return Page[User]{TotalResults: 1}, nil
+		}
+		return Page[User]{TotalResults: 1, Resources: []User{user}}, nil
+	}, userResponse)
+}
+
+func list[T, W any](w http.ResponseWriter, r *http.Request, run func(context.Context, int, int) (Page[T], error), wrap func(T) W) {
+	start, count, err := pagination(r.URL.Query())
 	if err != nil {
 		failWith(w, err)
 		return
 	}
-	start, count, err := pagination(query)
-	if err != nil {
-		failWith(w, err)
-		return
-	}
-	result, err := run(r.Context(), filter, start, count)
+	result, err := run(r.Context(), start, count)
 	if err != nil {
 		failWith(w, err)
 		return
@@ -195,10 +216,12 @@ func read(w http.ResponseWriter, r *http.Request, output any, schemas *[]string,
 	return true
 }
 
+func failFilter(w http.ResponseWriter) {
+	fail(w, http.StatusBadRequest, "invalidFilter", "only userName eq is supported, and only on Users")
+}
+
 func failWith(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, ErrFilter):
-		fail(w, http.StatusBadRequest, "invalidFilter", "only userName, emails.value and groups.value eq are supported")
 	case errors.Is(err, ErrInvalid):
 		fail(w, http.StatusBadRequest, "invalidValue", "invalid value")
 	case errors.Is(err, ErrNotFound):
