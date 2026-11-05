@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/holon-sh/protocol"
 	"github.com/holon-sh/protocol/identity"
 )
 
@@ -196,6 +197,74 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {other.Audience},
 	})
 	return wantRefused("refresh for another resource", err, "invalid_target")
+}
+
+func (s *suite) checkSignOut(ctx context.Context) error {
+	callback, err := url.Parse(s.cfg.BrowserRedirectURI)
+	if err != nil {
+		return err
+	}
+	for _, plane := range []protocol.Plane{protocol.BasePlane, protocol.AdminPlane, protocol.DevPlane} {
+		origin, err := protocol.PlaneOrigin(callback.Scheme+"://"+callback.Host, plane, "")
+		if err != nil {
+			return err
+		}
+		if err := s.wantSignOut(ctx, origin+"/?signedOut=1"); err != nil {
+			return fmt.Errorf("%s origin: %w", plane, err)
+		}
+	}
+	return nil
+}
+
+// wantSignOut signs in and sends the [OpenID Connect RP-Initiated Logout 1.0 §2] request Holon redirects a browser to,
+// with the ID token from sign-in as the hint. A refresh comes first, so that the hint is older than the session's
+// latest tokens, as it is when Holon signs out, and so that a refusal below can only come from sign-out. The provider
+// must redirect to the signed-out page, [OpenID Connect RP-Initiated Logout 1.0 §3], and the latest tokens must stop
+// working.
+//
+// [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
+// [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
+func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
+	issued, err := s.browserToken(ctx, "openid "+s.resourceScope())
+	if err != nil {
+		return err
+	}
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {s.cfg.Resource.Audience}}
+	refreshed, err := s.exchange(ctx, s.browserClient(), refresh)
+	if err != nil {
+		return fmt.Errorf("refresh before sign-out: %w", err)
+	}
+	status, location, err := s.endSession(ctx, issued.IDToken, signedOut)
+	if err != nil {
+		return fmt.Errorf("sign-out request: %w", err)
+	}
+	if location != signedOut {
+		return fmt.Errorf("sign-out answered status %d and location %q, want a redirect to %q", status, location, signedOut)
+	}
+	if err := s.wantInactive(ctx, refreshed.AccessToken, "of a signed-out session"); err != nil {
+		return err
+	}
+	refresh.Set("refresh_token", cmp.Or(refreshed.RefreshToken, issued.RefreshToken))
+	_, err = s.exchange(ctx, s.browserClient(), refresh)
+	return wantRefused("refresh after sign-out", err, "invalid_grant")
+}
+
+func (s *suite) endSession(ctx context.Context, hint, redirectURI string) (int, string, error) {
+	document, err := s.discover(ctx)
+	if err != nil {
+		return 0, "", err
+	}
+	query := url.Values{"client_id": {s.cfg.BrowserClientID}, "id_token_hint": {hint}, "post_logout_redirect_uri": {redirectURI}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, document.EndSessionEndpoint+"?"+query.Encode(), nil)
+	if err != nil {
+		return 0, "", err
+	}
+	response, err := s.http.Do(req)
+	if err != nil {
+		return 0, "", err
+	}
+	defer func() { _ = response.Body.Close() }()
+	return response.StatusCode, response.Header.Get("Location"), nil
 }
 
 func (s *suite) checkIssuedScope(ctx context.Context) error {

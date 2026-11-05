@@ -21,7 +21,9 @@ const requestTimeout = 30 * time.Second
 
 // Config names the backend under test. The service account is a confidential client allowed the client
 // credentials grant of [RFC 6749 §4.4]. HTTP must trust the issuer and the adapter. Resource must already be
-// registered, with at least one binding so that a permission-set group exists.
+// registered, with at least one binding so that a permission-set group exists. BrowserRedirectURI must be on the
+// base origin, and the browser client must have {origin}/?signedOut=1 registered as a post-logout redirect URI for
+// that origin and for the admin and dev origins protocol.PlaneOrigin derives from it.
 //
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
 type Config struct {
@@ -95,6 +97,7 @@ var rules = []rule{
 	{name: "cli client is public, uses the device authorization grant with offline_access and revokes its refresh token", browser: true, check: (*suite).checkCLIClient},
 	{name: "browser and cli refreshes keep the resource, and one naming another resource is invalid_target", browser: true, check: (*suite).checkRefreshResource},
 	{name: "issued scope is limited and reported in the scope parameter", browser: true, check: (*suite).checkIssuedScope},
+	{name: "sign-out with id_token_hint ends the session and redirects to the signed-out page", browser: true, check: (*suite).checkSignOut},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},
 	{name: "invitation link expires and is refused after setup", browser: true, check: (*suite).checkInvitationLink},
 }

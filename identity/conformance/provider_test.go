@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/holon-sh/protocol"
 	"github.com/holon-sh/protocol/identity"
 	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
@@ -36,8 +38,13 @@ const (
 )
 
 var (
-	testScopes    = []string{"app:read", "app:write"}
-	clientSecrets = map[string]string{browserClient: browserSecret, serviceClient: serviceSecret, cliClient: ""}
+	testScopes     = []string{"app:read", "app:write"}
+	clientSecrets  = map[string]string{browserClient: browserSecret, serviceClient: serviceSecret, cliClient: ""}
+	signedOutPages = map[string]protocol.Plane{
+		"https://holon.example.test/?signedOut=1":       protocol.BasePlane,
+		"https://admin.holon.example.test/?signedOut=1": protocol.AdminPlane,
+		"https://dev.holon.example.test/?signedOut=1":   protocol.DevPlane,
+	}
 )
 
 type faults struct {
@@ -61,14 +68,16 @@ type faults struct {
 	refreshInvalidGrant, revocationIgnored               bool
 	refreshRefused                                       bool
 	cliRefreshLosesAudience, cliRefreshAnyResource       bool
+	signOutKeepsAccess, signOutKeepsRefresh              bool
+	signedOutUnregistered                                protocol.Plane
 	samePasswordAccepted, nameNotCollected, stillPending bool
 	linkReusable, linkNeverExpires                       bool
 }
 
 type record struct {
-	client, subject, audience, scope string
-	generation                       int
-	rotated                          bool
+	client, subject, audience, scope, session string
+	generation                                int
+	rotated                                   bool
 }
 
 type codeRecord struct {
@@ -131,6 +140,7 @@ func newProvider(t *testing.T, f faults) *provider {
 	issuer.HandleFunc("POST /token", p.token)
 	issuer.HandleFunc("POST /device", p.deviceAuthorize)
 	issuer.HandleFunc("POST /revoke", p.revoke)
+	issuer.HandleFunc("GET /logout", p.logout)
 	p.issuer = httptest.NewTLSServer(issuer)
 	t.Cleanup(p.issuer.Close)
 	adapter := http.NewServeMux()
@@ -191,6 +201,9 @@ func (p *provider) issue(w http.ResponseWriter, r record, refresh bool) {
 	value := p.id("token-")
 	p.tokens[value] = r
 	response := token{AccessToken: value, TokenType: "bearer", Scope: r.scope}
+	if slices.Contains(strings.Fields(r.scope), "openid") {
+		response.IDToken = r.session
+	}
 	if refresh {
 		response.RefreshToken = p.id("refresh-")
 		p.refreshes[response.RefreshToken] = r
@@ -279,6 +292,7 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		previous.audience = ""
 	}
 	previous.rotated = true
+	delete(p.refreshes, value)
 	p.issue(w, previous, true)
 }
 
@@ -293,6 +307,26 @@ func (p *provider) revoke(w http.ResponseWriter, r *http.Request) {
 	if !p.faults.revocationIgnored {
 		delete(p.refreshes, r.PostForm.Get("token"))
 	}
+}
+
+func (p *provider) logout(w http.ResponseWriter, r *http.Request) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	query := r.URL.Query()
+	target := query.Get("post_logout_redirect_uri")
+	plane, registered := signedOutPages[target]
+	if !registered || plane == p.faults.signedOutUnregistered || query.Get("client_id") != browserClient {
+		refuse(w, "invalid_request")
+		return
+	}
+	inSession := func(_ string, r record) bool { return r.session == query.Get("id_token_hint") }
+	if !p.faults.signOutKeepsAccess {
+		maps.DeleteFunc(p.tokens, inSession)
+	}
+	if !p.faults.signOutKeepsRefresh {
+		maps.DeleteFunc(p.refreshes, inSession)
+	}
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -435,7 +469,7 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 	p.codes[code] = codeRecord{
 		record: record{
 			client: query.Get("client_id"), subject: subject, audience: audience, scope: p.limit(audience, query.Get("scope")),
-			generation: p.generations[audience],
+			generation: p.generations[audience], session: p.id("session-"),
 		},
 		redirectURI: query.Get("redirect_uri"), challenge: query.Get("code_challenge"),
 	}
@@ -564,19 +598,15 @@ func (p *provider) PatchUser(_ context.Context, id string, patch scim.Patch) (sc
 		return p.view(user), nil
 	}
 	for _, operation := range patch.Operations {
-		var err error
 		switch operation.Path {
 		case "active":
-			err = json.Unmarshal(operation.Value, &user.Active)
+			_ = json.Unmarshal(operation.Value, &user.Active)
 		case "name":
-			err = json.Unmarshal(operation.Value, &user.Name)
+			_ = json.Unmarshal(operation.Value, &user.Name)
 		case "password":
-			err = json.Unmarshal(operation.Value, &user.Password)
+			_ = json.Unmarshal(operation.Value, &user.Password)
 			user.Holon.PendingSetup = true
 		default:
-			return scim.User{}, scim.ErrInvalid
-		}
-		if err != nil {
 			return scim.User{}, scim.ErrInvalid
 		}
 	}
@@ -636,9 +666,7 @@ func (p *provider) PatchGroup(_ context.Context, id string, patch scim.Patch) (s
 		case p.faults.membersIgnored:
 		case operation.Op == "add" && operation.Path == "members":
 			var refs []scim.Ref
-			if json.Unmarshal(operation.Value, &refs) != nil {
-				return scim.Group{}, scim.ErrInvalid
-			}
+			_ = json.Unmarshal(operation.Value, &refs)
 			for _, ref := range refs {
 				p.members[ref.Value] = true
 			}
