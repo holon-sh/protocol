@@ -43,51 +43,66 @@ func (d deviceAuthorization) validate() error {
 	return nil
 }
 
-// checkCLIClient drives the device authorization grant of [RFC 8628 §3] as the public cli client, with the
-// resource parameter of [RFC 8707 §2] on both the device request and the token poll, and with offline_access,
-// which must yield a refresh token. It then refreshes, so that a refusal below can only come from revocation,
-// revokes the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of [RFC 6749 §5.2]
-// from using it.
+// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client, with the resource
+// parameter of [RFC 8707 §2] on both the device request and the token poll, and with offline_access, which must
+// yield a refresh token.
 //
-// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
-// [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 // [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
-func (s *suite) checkCLIClient(ctx context.Context) error {
+func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	client := oauthClient{id: s.cfg.CLIClientID}
 	resource := s.cfg.Resource.Audience
 	document, err := s.discover(ctx)
 	if err != nil {
-		return err
+		return token{}, err
 	}
 	var device deviceAuthorization
 	request := url.Values{"scope": {"offline_access " + s.resourceScope()}, "resource": {resource}}
 	if err := s.post(ctx, document.DeviceAuthorizationEndpoint, client, request, &device); err != nil {
-		return fmt.Errorf("device authorization request: %w", err)
+		return token{}, fmt.Errorf("device authorization request: %w", err)
 	}
 	if err := device.validate(); err != nil {
-		return err
+		return token{}, err
 	}
 	poll := url.Values{"grant_type": {deviceGrantType}, "device_code": {device.DeviceCode}, "resource": {resource}}
 	_, err = s.exchange(ctx, client, poll)
 	if err := wantRefused("a poll before sign-in", err, "authorization_pending"); err != nil {
-		return err
+		return token{}, err
 	}
 	signIn := SignInRequest{AuthorizationURL: cmp.Or(device.VerificationURIComplete, device.VerificationURI), UserCode: device.UserCode}
 	if _, err := s.cfg.SignIn(ctx, signIn); err != nil {
-		return fmt.Errorf("sign-in: %w", err)
+		return token{}, fmt.Errorf("sign-in: %w", err)
 	}
 	issued, err := s.pollDevice(ctx, client, device, poll)
 	if err != nil {
-		return fmt.Errorf("device token poll: %w", err)
+		return token{}, fmt.Errorf("device token poll: %w", err)
 	}
 	if issued.RefreshToken == "" {
-		return errors.New("the device grant with offline_access issued no refresh token")
+		return token{}, errors.New("the device grant with offline_access issued no refresh token")
 	}
 	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource); err != nil {
+		return token{}, err
+	}
+	return issued, nil
+}
+
+// checkCLIClient takes a device grant, refreshes, so that a refusal below can only come from revocation, revokes
+// the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of [RFC 6749 §5.2] from using
+// it.
+//
+// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
+// [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
+func (s *suite) checkCLIClient(ctx context.Context) error {
+	client := oauthClient{id: s.cfg.CLIClientID}
+	document, err := s.discover(ctx)
+	if err != nil {
 		return err
 	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
+	issued, err := s.deviceToken(ctx)
+	if err != nil {
+		return err
+	}
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {s.cfg.Resource.Audience}}
 	refreshed, err := s.exchange(ctx, client, refresh)
 	if err != nil {
 		return fmt.Errorf("refresh before revocation: %w", err)
