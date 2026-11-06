@@ -127,7 +127,7 @@ func wantRefused(action string, err error, code string) error {
 }
 
 func (s *suite) checkBrowserClient(ctx context.Context) error {
-	first, err := s.authorize(ctx, SignInRequest{})
+	first, err := s.authorize(ctx, s.browserClient(), SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -200,23 +200,35 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 }
 
 func (s *suite) checkSignOut(ctx context.Context) error {
-	callback, err := url.Parse(s.cfg.BrowserRedirectURI)
-	if err != nil {
-		return err
-	}
 	for _, plane := range []protocol.Plane{protocol.BasePlane, protocol.AdminPlane, protocol.DevPlane} {
-		origin, err := protocol.PlaneOrigin(callback.Scheme+"://"+callback.Host, plane, "")
+		signedOut, err := s.signedOutPage(plane)
 		if err != nil {
 			return err
 		}
-		if err := s.wantSignOut(ctx, origin+"/?signedOut=1"); err != nil {
+		issued, err := s.browserToken(ctx)
+		if err == nil {
+			err = s.wantSignOut(ctx, issued, signedOut)
+		}
+		if err != nil {
 			return fmt.Errorf("%s origin: %w", plane, err)
 		}
 	}
 	return nil
 }
 
-// wantSignOut signs in and sends the [OpenID Connect RP-Initiated Logout 1.0 §2] request Holon redirects a browser to,
+func (s *suite) signedOutPage(plane protocol.Plane) (string, error) {
+	callback, err := url.Parse(s.cfg.BrowserRedirectURI)
+	if err != nil {
+		return "", err
+	}
+	origin, err := protocol.PlaneOrigin(callback.Scheme+"://"+callback.Host, plane, "")
+	if err != nil {
+		return "", err
+	}
+	return origin + "/?signedOut=1", nil
+}
+
+// wantSignOut sends the [OpenID Connect RP-Initiated Logout 1.0 §2] request Holon redirects a browser to,
 // with the ID token from sign-in as the hint. A refresh comes first, so that the hint is older than the session's
 // latest tokens, as it is when Holon signs out, and so that a refusal below can only come from sign-out. The provider
 // must redirect to the signed-out page, [OpenID Connect RP-Initiated Logout 1.0 §3], and the latest tokens must stop
@@ -224,11 +236,7 @@ func (s *suite) checkSignOut(ctx context.Context) error {
 //
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
-func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
-	issued, err := s.browserToken(ctx)
-	if err != nil {
-		return err
-	}
+func (s *suite) wantSignOut(ctx context.Context, issued token, signedOut string) error {
 	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {s.cfg.Resource.Audience}}
 	refreshed, err := s.exchange(ctx, s.browserClient(), refresh)
 	if err != nil {
@@ -268,11 +276,68 @@ func (s *suite) endSession(ctx context.Context, hint, redirectURI string) (int, 
 }
 
 func (s *suite) checkIssuedScope(ctx context.Context) error {
+	resource := s.cfg.Resource
 	issued, err := s.browserToken(ctx)
 	if err != nil {
 		return err
 	}
-	return wantIssuedScope(issued.Scope, s.cfg.Resource.Scopes)
+	if err := wantIssuedScope(issued.Scope, resource.Scopes); err != nil {
+		return err
+	}
+	result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, resource.Audience)
+	if err != nil {
+		return err
+	}
+	var unheld token
+	err = s.holdingNothing(ctx, result.Subject, func() error {
+		narrowed, err := s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, resource.Audience)
+		if err != nil {
+			return fmt.Errorf("a token whose subject lost its permission sets: %w", err)
+		}
+		if err := wantNoResourceScope(narrowed.Scope, resource.Scopes); err != nil {
+			return err
+		}
+		unheld, err = s.browserToken(ctx)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	grown, err := s.wantActive(ctx, unheld.AccessToken, s.cfg.BrowserClientID, resource.Audience)
+	if err == nil {
+		err = wantIssuedScope(grown.Scope, resource.Scopes)
+	}
+	if err != nil {
+		return fmt.Errorf("a token whose subject gained permission sets: %w", err)
+	}
+	return nil
+}
+
+func (s *suite) holdingNothing(ctx context.Context, subject string, during func() error) error {
+	person, err := s.users.GetUser(ctx, subject)
+	if err != nil {
+		return fmt.Errorf("get the signed-in person: %w", err)
+	}
+	defer func() {
+		for _, group := range person.Groups {
+			_, _ = s.users.PatchGroup(ctx, group.Value, addMember(subject))
+		}
+	}()
+	for _, group := range person.Groups {
+		if _, err := s.users.PatchGroup(ctx, group.Value, removeMember(subject)); err != nil {
+			return fmt.Errorf("remove membership of %s: %w", group.Value, err)
+		}
+	}
+	return during()
+}
+
+func wantNoResourceScope(scope string, registered []string) error {
+	for granted := range strings.FieldsSeq(scope) {
+		if slices.Contains(registered, granted) {
+			return fmt.Errorf("scope %q at introspection is no longer held", granted)
+		}
+	}
+	return nil
 }
 
 // wantIssuedScope holds the scope response parameter to [RFC 6749 §5.1]: the request named no resource scope, so the
