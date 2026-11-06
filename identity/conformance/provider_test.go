@@ -21,6 +21,7 @@ import (
 	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
 	"github.com/holon-sh/protocol/identity/scim"
+	"github.com/holon-sh/protocol/identity/tokenclient"
 )
 
 const (
@@ -74,12 +75,17 @@ type faults struct {
 	signedOutUnregistered                                protocol.Plane
 	samePasswordAccepted, nameNotCollected, stillPending bool
 	linkReusable, linkNeverExpires                       bool
+	scopeFixedAtIssue, scopeNeverGrows                   bool
+	inactiveWithoutScope                                 bool
+	personalTokenShort, personalTokenAsksAgain           bool
+	signOutRaisesNotBefore                               bool
 }
 
 type record struct {
 	client, subject, audience, scope, session string
 	generation                                int
 	rotated                                   bool
+	minted                                    time.Time
 }
 
 type codeRecord struct {
@@ -121,6 +127,9 @@ type provider struct {
 	groups      []scim.Group
 	members     map[string]bool
 	invites     map[string]*fakeInvite
+	secrets     map[string]string
+	browser     string
+	notBefore   time.Time
 }
 
 func newProvider(t *testing.T, f faults) *provider {
@@ -133,9 +142,10 @@ func newProvider(t *testing.T, f faults) *provider {
 		refreshes:   map[string]record{},
 		codes:       map[string]codeRecord{},
 		devices:     map[string]*deviceRecord{},
-		users:       map[string]*scim.User{},
-		members:     map[string]bool{},
+		users:       map[string]*scim.User{callerPerson: {ID: callerPerson, UserName: callerPerson + "@example.test", Active: true, Holon: &scim.UserExtension{}}},
+		members:     map[string]bool{callerPerson: true},
 		invites:     map[string]*fakeInvite{},
+		secrets:     maps.Clone(clientSecrets),
 	}
 	issuer := http.NewServeMux()
 	issuer.HandleFunc("GET /.well-known/openid-configuration", p.discovery)
@@ -148,6 +158,7 @@ func newProvider(t *testing.T, f faults) *provider {
 	adapter := http.NewServeMux()
 	adapter.Handle("/scim/v2/", scim.Handler(p, testBearer))
 	adapter.Handle("/v1/invitations", invitation.Handler(p, testBearer))
+	adapter.Handle("/v1/token-clients", tokenclient.Handler(p, testBearer))
 	adapter.Handle("/v1/resources/", identity.NewHandler(p, testBearer))
 	adapter.HandleFunc("POST /introspect", p.introspect)
 	p.adapter = httptest.NewTLSServer(adapter)
@@ -201,6 +212,7 @@ func refuse(w http.ResponseWriter, code string) {
 
 func (p *provider) issue(w http.ResponseWriter, r record, refresh bool) {
 	value := p.id("token-")
+	r.minted = p.now()
 	p.tokens[value] = r
 	response := token{AccessToken: value, TokenType: "bearer", Scope: r.scope}
 	if slices.Contains(strings.Fields(r.scope), "openid") {
@@ -213,10 +225,27 @@ func (p *provider) issue(w http.ResponseWriter, r record, refresh bool) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (p *provider) limit(audience, requested string) string {
+func (p *provider) holds(subject string) bool {
+	return subject != callerPerson || p.members[callerPerson]
+}
+
+func personalClient(client string) bool {
+	_, shared := clientSecrets[client]
+	return !shared
+}
+
+func (p *provider) held(subject, audience, requested string) []string {
 	granted := slices.DeleteFunc(strings.Fields(requested), func(scope string) bool { return !slices.Contains(protocolScopes, scope) })
-	if !p.faults.scopeOnlyWhenNamed {
+	if p.holds(subject) {
 		granted = append(granted, p.scopes[audience]...)
+	}
+	return granted
+}
+
+func (p *provider) limit(subject, audience, requested string) string {
+	granted := p.held(subject, audience, requested)
+	if p.faults.scopeOnlyWhenNamed {
+		granted = slices.DeleteFunc(granted, func(scope string) bool { return !slices.Contains(protocolScopes, scope) })
 	}
 	if p.faults.leakScope {
 		granted = append(granted, leakedScope)
@@ -232,7 +261,7 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 	id, _ = url.QueryUnescape(id)
 	secret, _ = url.QueryUnescape(secret)
 	client := cmp.Or(id, r.PostForm.Get("client_id"))
-	if want, known := clientSecrets[client]; !known || secret != want {
+	if want, known := p.secrets[client]; !known || secret != want {
 		refuse(w, "invalid_client")
 		return
 	}
@@ -260,7 +289,7 @@ func (p *provider) clientCredentials(w http.ResponseWriter, client, resource str
 		refuse(w, "invalid_target")
 		return
 	}
-	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, ""), generation: generation}, false)
+	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit("service", resource, ""), generation: generation}, false)
 }
 
 func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, form url.Values) {
@@ -322,7 +351,12 @@ func (p *provider) logout(w http.ResponseWriter, r *http.Request) {
 		refuse(w, "invalid_request")
 		return
 	}
-	inSession := func(_ string, r record) bool { return r.session == query.Get("id_token_hint") }
+	inSession := func(_ string, r record) bool {
+		return r.session == query.Get("id_token_hint") && !personalClient(r.client)
+	}
+	if p.faults.signOutRaisesNotBefore {
+		p.notBefore = p.now()
+	}
 	if !p.faults.signOutKeepsAccess {
 		maps.DeleteFunc(p.tokens, inSession)
 	}
@@ -348,7 +382,7 @@ func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	code, userCode := p.id("device-"), p.id("user-code-")
 	p.devices[code] = &deviceRecord{
 		record: record{
-			client: cliClient, subject: callerPerson, audience: audience, scope: p.limit(audience, r.PostForm.Get("scope")),
+			client: cliClient, subject: callerPerson, audience: audience, scope: p.limit(callerPerson, audience, r.PostForm.Get("scope")),
 			generation: p.generations[audience],
 		},
 		userCode: userCode, interval: deviceInterval,
@@ -409,7 +443,9 @@ func (p *provider) introspect(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	token, known := p.tokens[r.PostForm.Get("token")]
 	generation, registered := p.generations[token.audience]
-	active := known && (p.faults.activeAfterDelete || (registered && generation == token.generation))
+	active := known && (p.faults.activeAfterDelete || (registered && generation == token.generation)) &&
+		(!p.faults.inactiveWithoutScope || p.holds(token.subject)) &&
+		(!p.faults.signOutRaisesNotBefore || token.minted.Unix() >= p.notBefore.Unix())
 	if !known && p.faults.activeUnknownToken {
 		token, active = record{client: serviceClient, subject: "service", audience: testResource}, true
 	}
@@ -419,18 +455,42 @@ func (p *provider) introspect(w http.ResponseWriter, r *http.Request) {
 	if p.faults.wrongAudience {
 		token.audience = "https://another.example.test/"
 	}
-	if p.faults.pairwiseSubject && token.client == cliClient {
+	if p.faults.pairwiseSubject && token.client != browserClient {
 		token.subject = "pairwise " + token.subject
 	}
 	var result introspection.Result
 	if active {
+		lifetime := time.Hour
+		if personalClient(token.client) && !p.faults.personalTokenShort {
+			lifetime = 30 * 24 * time.Hour
+		}
 		result = introspection.Result{
 			Active: true, Issuer: p.issuer.URL, Subject: token.subject, ClientID: token.client,
-			Expiry: p.now().Add(time.Hour).Unix(), Audience: token.audience, Scope: token.scope,
+			Expiry: p.now().Add(lifetime).Unix(), Audience: token.audience, Scope: p.currentScope(token),
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+func (p *provider) currentScope(token record) string {
+	if p.faults.scopeFixedAtIssue {
+		return token.scope
+	}
+	current := p.held(token.subject, token.audience, token.scope)
+	if p.faults.scopeNeverGrows {
+		issued := strings.Fields(token.scope)
+		current = slices.DeleteFunc(current, func(scope string) bool { return !slices.Contains(issued, scope) })
+	}
+	return strings.Join(current, " ")
+}
+
+func (p *provider) Create(context.Context, tokenclient.Request) (tokenclient.Credentials, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	credentials := tokenclient.Credentials{ClientID: p.id("token-client-"), ClientSecret: p.id("secret-")}
+	p.secrets[credentials.ClientID] = credentials.ClientSecret
+	return credentials, nil
 }
 
 func (p *provider) Ensure(_ context.Context, spec identity.Spec) error {
@@ -479,16 +539,25 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 	if query.Get("code_challenge_method") != "S256" {
 		return nil, errors.New("PKCE S256 is required")
 	}
+	redirect, _ := url.Parse(query.Get("redirect_uri"))
+	session := p.id("session-")
+	if query.Get("prompt") == "none" {
+		if p.faults.personalTokenAsksAgain {
+			redirect.RawQuery = url.Values{"error": {"login_required"}, "state": {query.Get("state")}}.Encode()
+			return redirect, nil
+		}
+		session = p.browser
+	}
+	p.browser = session
 	audience := query.Get("resource")
 	code := p.id("code-")
 	p.codes[code] = codeRecord{
 		record: record{
-			client: query.Get("client_id"), subject: subject, audience: audience, scope: p.limit(audience, query.Get("scope")),
-			generation: p.generations[audience], session: p.id("session-"),
+			client: query.Get("client_id"), subject: subject, audience: audience, scope: p.limit(subject, audience, query.Get("scope")),
+			generation: p.generations[audience], session: session,
 		},
 		redirectURI: query.Get("redirect_uri"), challenge: query.Get("code_challenge"),
 	}
-	redirect, _ := url.Parse(query.Get("redirect_uri"))
 	redirect.RawQuery = url.Values{"code": {code}, "state": {query.Get("state")}}.Encode()
 	return redirect, nil
 }
