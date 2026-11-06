@@ -1,4 +1,4 @@
-// Package invitation is the one operation Holon defines itself. SCIM 2.0 has no invitation and each backend
+// Package invitation defines Holon's invitation operation. SCIM 2.0 has no invitation and each backend
 // invites differently, so no standard applies.
 package invitation
 
