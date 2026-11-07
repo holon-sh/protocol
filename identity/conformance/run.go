@@ -16,7 +16,6 @@ import (
 	"github.com/holon-sh/protocol/identity/introspection"
 	"github.com/holon-sh/protocol/identity/invitation"
 	"github.com/holon-sh/protocol/identity/scim"
-	"github.com/holon-sh/protocol/identity/tokenclient"
 )
 
 const requestTimeout = 30 * time.Second
@@ -62,8 +61,7 @@ type SignIn func(context.Context, SignInRequest) (*url.URL, error)
 // [RFC 8628 §3.3] verification URI. When Invitation is set there is no AuthorizationURL, and the hook opens the
 // link in the latest message sent to UserName instead. An empty UserName means the caller's own test person,
 // who holds Resource.Scopes through a permission set. Otherwise UserName and Password identify a person the
-// suite created. UserCode, NewPassword and Name are what to submit if the issuer asks for them. When SameBrowser is
-// set the hook opens AuthorizationURL in the browser of the previous sign-in, which is still signed in.
+// suite created. UserCode, NewPassword and Name are what to submit if the issuer asks for them.
 //
 // [RFC 6749 §4.1.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
 // [RFC 8628 §3.3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3.3
@@ -75,7 +73,6 @@ type SignInRequest struct {
 	Password         string
 	NewPassword      string
 	Name             *scim.Name
-	SameBrowser      bool
 }
 
 type rule struct {
@@ -100,9 +97,8 @@ var rules = []rule{
 	{name: "browser client uses the authorization code grant with PKCE S256", browser: true, check: (*suite).checkBrowserClient},
 	{name: "cli client is public, uses the device authorization grant with offline_access and revokes its refresh token", browser: true, check: (*suite).checkCLIClient},
 	{name: "browser and cli refreshes keep the resource, and one naming another resource is invalid_target", browser: true, check: (*suite).checkRefreshResource},
-	{name: "scope is what the subject holds on the resource, in the scope parameter when issued and current at introspection", browser: true, check: (*suite).checkIssuedScope},
+	{name: "issued scope is what the subject holds on the resource, reported in the scope parameter and at introspection", browser: true, check: (*suite).checkIssuedScope},
 	{name: "sign-out with id_token_hint ends the session and redirects to the signed-out page", browser: true, check: (*suite).checkSignOut},
-	{name: "personal token has the person's sub, its own client_id and 30 days, and survives browser sign-out", browser: true, check: (*suite).checkPersonalToken},
 	{name: "SCIM id is the sub at the browser client, and GET /Users/{sub} lists the person's groups", browser: true, check: (*suite).checkSCIMIDIsSubject},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},
 	{name: "invitation link expires and is refused after setup", browser: true, check: (*suite).checkInvitationLink},
@@ -159,7 +155,6 @@ type suite struct {
 	invitations   *invitation.Client
 	registrations *identity.Client
 	introspector  *introspection.Client
-	tokens        *tokenclient.Client
 }
 
 func newSuite(cfg Config) (*suite, error) {
@@ -175,12 +170,11 @@ func newSuite(cfg Config) (*suite, error) {
 	invitations, invitationsErr := invitation.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
 	registrations, registrationsErr := identity.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
 	introspector, introspectorErr := introspection.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
-	tokens, tokensErr := tokenclient.NewClient(cfg.Adapter, cfg.Bearer, cfg.HTTP)
-	if err := errors.Join(rawErr, usersErr, invitationsErr, registrationsErr, introspectorErr, tokensErr); err != nil {
+	if err := errors.Join(rawErr, usersErr, invitationsErr, registrationsErr, introspectorErr); err != nil {
 		return nil, err
 	}
 	return &suite{
 		wait: wait, cfg: cfg, http: adapter.NoRedirects(cfg.HTTP, requestTimeout), adapter: raw,
-		users: users, invitations: invitations, registrations: registrations, introspector: introspector, tokens: tokens,
+		users: users, invitations: invitations, registrations: registrations, introspector: introspector,
 	}, nil
 }

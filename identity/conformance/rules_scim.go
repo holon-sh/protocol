@@ -309,7 +309,7 @@ func (s *suite) checkSCIMIDIsSubject(ctx context.Context) error {
 		return err
 	}
 	defer s.deleteUser(ctx, person.ID)
-	signIn, err := s.authorize(ctx, s.browserClient(), SignInRequest{
+	signIn, err := s.authorize(ctx, SignInRequest{
 		UserName: person.UserName, Password: password, NewPassword: temporaryPassword(), Name: &personName,
 	})
 	if err != nil {

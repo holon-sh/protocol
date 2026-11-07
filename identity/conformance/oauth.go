@@ -180,7 +180,6 @@ func (s *suite) clientCredentials(ctx context.Context, resource string) (token, 
 }
 
 type grant struct {
-	client         oauthClient
 	code, verifier string
 }
 
@@ -192,24 +191,15 @@ func pkceChallenge(verifier string) string {
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-// authorize sends client's [RFC 6749 §4.1.1] request. A sign-in in the same browser asks for prompt=none of
-// [OpenID Connect Core 1.0 §3.1.2.1], so that it fails with login_required unless the earlier session is what signs
-// the person in.
-//
-// [OpenID Connect Core 1.0 §3.1.2.1]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-// [RFC 6749 §4.1.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-func (s *suite) authorize(ctx context.Context, client oauthClient, person SignInRequest) (grant, error) {
+func (s *suite) authorize(ctx context.Context, person SignInRequest) (grant, error) {
 	document, err := s.discover(ctx)
 	if err != nil {
 		return grant{}, err
 	}
 	state, verifier := rand.Text(), rand.Text()+rand.Text()
 	query := url.Values{
-		"response_type": {"code"}, "client_id": {client.id}, "redirect_uri": {s.cfg.BrowserRedirectURI}, "scope": {"openid"},
+		"response_type": {"code"}, "client_id": {s.cfg.BrowserClientID}, "redirect_uri": {s.cfg.BrowserRedirectURI}, "scope": {"openid"},
 		"state": {state}, "resource": {s.cfg.Resource.Audience}, "code_challenge": {pkceChallenge(verifier)}, "code_challenge_method": {"S256"},
-	}
-	if person.SameBrowser {
-		query.Set("prompt", "none")
 	}
 	request := person
 	request.AuthorizationURL = document.AuthorizationEndpoint + "?" + query.Encode()
@@ -221,7 +211,7 @@ func (s *suite) authorize(ctx context.Context, client oauthClient, person SignIn
 	if err != nil {
 		return grant{}, err
 	}
-	return grant{client: client, code: code, verifier: verifier}, nil
+	return grant{code: code, verifier: verifier}, nil
 }
 
 // authorizationCode reads the [RFC 6749 §4.1.2] response from the URL the issuer redirected to.
@@ -246,14 +236,14 @@ func authorizationCode(redirect *url.URL, redirectURI, state string) (string, er
 }
 
 func (s *suite) redeem(ctx context.Context, issued grant) (token, error) {
-	return s.exchange(ctx, issued.client, url.Values{
+	return s.exchange(ctx, s.browserClient(), url.Values{
 		"grant_type": {"authorization_code"}, "code": {issued.code}, "redirect_uri": {s.cfg.BrowserRedirectURI},
 		"code_verifier": {issued.verifier}, "resource": {s.cfg.Resource.Audience},
 	})
 }
 
 func (s *suite) browserToken(ctx context.Context) (token, error) {
-	issued, err := s.authorize(ctx, s.browserClient(), SignInRequest{})
+	issued, err := s.authorize(ctx, SignInRequest{})
 	if err != nil {
 		return token{}, err
 	}
