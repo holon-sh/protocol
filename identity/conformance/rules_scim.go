@@ -302,6 +302,45 @@ func (s *suite) checkSCIMPatch(ctx context.Context) error {
 	return s.wantMembership(ctx, person.ID, group.ID, false)
 }
 
+func (s *suite) checkSCIMIDIsSubject(ctx context.Context) error {
+	password := temporaryPassword()
+	person, err := s.createPerson(ctx, password)
+	if err != nil {
+		return err
+	}
+	defer s.deleteUser(ctx, person.ID)
+	signIn, err := s.authorize(ctx, s.browserClient(), SignInRequest{
+		UserName: person.UserName, Password: password, NewPassword: temporaryPassword(), Name: &personName,
+	})
+	if err != nil {
+		return err
+	}
+	issued, err := s.redeem(ctx, signIn)
+	if err != nil {
+		return err
+	}
+	result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, s.cfg.Resource.Audience)
+	if err != nil {
+		return err
+	}
+	user, err := s.users.GetUser(ctx, result.Subject)
+	if err != nil {
+		return fmt.Errorf("get the person by sub %q: %w", result.Subject, err)
+	}
+	if user.ID != result.Subject || user.UserName != person.UserName {
+		return fmt.Errorf("get by sub %q answered %s with id %q", result.Subject, user.UserName, user.ID)
+	}
+	group, err := s.permissionGroup(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := s.users.PatchGroup(ctx, group.ID, addMember(result.Subject)); err != nil {
+		return fmt.Errorf("add members: %w", err)
+	}
+	defer func() { _, _ = s.users.PatchGroup(ctx, group.ID, removeMember(result.Subject)) }()
+	return s.wantMembership(ctx, result.Subject, group.ID, true)
+}
+
 func (s *suite) wantMembership(ctx context.Context, userID, groupID string, want bool) error {
 	user, err := s.users.GetUser(ctx, userID)
 	if err != nil {
