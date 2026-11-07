@@ -72,11 +72,11 @@ func (s *suite) checkTemporaryPassword(ctx context.Context) error {
 	}
 	defer s.deleteUser(ctx, person.ID)
 	signIn := SignInRequest{UserName: person.UserName, Password: password, NewPassword: password, Name: &personName}
-	if _, err := s.authorize(ctx, s.browserClient(), signIn); err == nil {
+	if _, err := s.authorize(ctx, signIn); err == nil {
 		return errors.New("the issuer accepted the temporary password as the new one")
 	}
 	signIn.NewPassword = temporaryPassword()
-	if _, err := s.authorize(ctx, s.browserClient(), signIn); err != nil {
+	if _, err := s.authorize(ctx, signIn); err != nil {
 		return fmt.Errorf("first sign-in with a new password: %w", err)
 	}
 	return s.wantSetUp(ctx, person.ID)

@@ -13,9 +13,8 @@
 //     different resource is refused with invalid_target, [RFC 8707 §2].
 //   - Scope. A request names no resource scope. The resource decides, the default [RFC 6749 §3.3] allows: the issued
 //     scope is what the resource registered and the subject holds through a permission set when the token is issued,
-//     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1]. At introspection the
-//     scope is what the subject holds at that moment, more or less than was issued, and the token stays active.
-//     Protocol scopes (openid, profile, email, offline_access) pass through unchanged.
+//     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1], and introspection
+//     answers it as issued. Protocol scopes (openid, profile, email, offline_access) pass through unchanged.
 //   - Registration. A token minted before its resource was registered, or after it was deleted and registered
 //     again, is inactive.
 //   - People. For each person, the SCIM User id the adapter serves, [RFC 7643 §3.1], is the sub of that person's
@@ -29,17 +28,12 @@
 //   - Introspection. The adapter answers [RFC 7662 §2.2] with active, token_type Bearer, iss, sub, client_id, exp,
 //     aud as one string, and scope in the format of [RFC 6749 §3.3] unless it is empty, and authenticates the caller by
 //     the shared bearer, which [RFC 7662 §2.1] allows. A token of any other type is not active.
-//   - Personal tokens. POST /v1/token-clients creates a client for one token. A person who signs in through it with
-//     the authorization code grant, PKCE S256 and one resource receives an access token whose sub is the same as at
-//     the browser client, whose client_id is the created client and whose exp is 30 days away. It survives that
-//     person's browser sign-out.
 //   - Revocation. The issuer advertises revocation_endpoint, [RFC 8414 §2], and accepts [RFC 7009 §2.1] from the
 //     cli client with its client_id and no credential. A revoked refresh token is refused with invalid_grant on
 //     its next use, [RFC 6749 §5.2].
 //   - Sign-out. A request to end_session_endpoint with id_token_hint, including an expired one, ends the provider
 //     session without asking the user, [OpenID Connect RP-Initiated Logout 1.0 §2]: the session's access token
-//     goes inactive and its refresh token is refused with invalid_grant, except that a personal token minted in the
-//     session stays active. With no hint the provider asks the user
+//     goes inactive and its refresh token is refused with invalid_grant. With no hint the provider asks the user
 //     to confirm before it ends a browser's session. The browser client has {origin}/?signedOut=1 registered as a
 //     post-logout redirect URI for the base, admin and dev origins, and the provider redirects there after
 //     logout, [OpenID Connect RP-Initiated Logout 1.0 §3].
