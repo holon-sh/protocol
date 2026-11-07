@@ -54,9 +54,6 @@ func ValidateAccess(access *AppAccess) error {
 	if access == nil || access.Server == nil {
 		return errors.New("access.server must be explicit; use {} for public access")
 	}
-	if len(access.Callers) > 256 || len(access.Callers) > 0 && !ValidAppNames(access.Callers) {
-		return errors.New("access.callers must contain at most 256 unique, valid app names")
-	}
 	if len(access.Tools) > 256 {
 		return errors.New("access.tools must contain at most 256 entries")
 	}
@@ -66,6 +63,9 @@ func ValidateAccess(access *AppAccess) error {
 		}
 	}
 	for path, rule := range access.Rules() {
+		if len(rule.Callers) > 256 || len(rule.Callers) > 0 && !ValidAppNames(rule.Callers) {
+			return fmt.Errorf("%s: callers must contain at most 256 unique, valid app names", path)
+		}
 		if !oauthscope.ValidScopes(rule.Scopes()) {
 			return fmt.Errorf("%s: oauth.scopes must contain unique OAuth scope tokens of at most 256 bytes", path)
 		}

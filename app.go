@@ -96,6 +96,12 @@ type AccessRule struct {
 	// +nullable
 	// +optional
 	OAuth *OAuthRequirement `json:"oauth,omitempty"`
+	// +listType=set
+	// +kubebuilder:validation:MaxItems=256
+	// +kubebuilder:validation:items:MaxLength=49
+	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	// +optional
+	Callers []string `description:"App callers: omit for all; [] denies all." json:"callers,omitzero" maxItems:"256" nullable:"false" uniqueItems:"true"`
 }
 
 type OAuthRequirement struct {
@@ -108,14 +114,7 @@ type OAuthRequirement struct {
 }
 
 type AppAccess struct {
-	// +listType=set
-	// +kubebuilder:validation:MaxItems=256
-	// +kubebuilder:validation:items:MaxLength=49
-	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-	// +optional
-	Callers []string `description:"App callers: omit for all; [] denies all." json:"callers,omitzero" maxItems:"256" nullable:"false" uniqueItems:"true"`
-
-	Server *AccessRule `description:"{} is public; oauth: {} requires authentication." json:"server" nullable:"false" required:"true"`
+	Server *AccessRule `description:"{} is public to all callers; oauth: {} requires authentication; callers: [...] admits only those apps." json:"server" nullable:"false" required:"true"`
 	// +nullable
 	// +kubebuilder:validation:MaxProperties=256
 	// +optional
