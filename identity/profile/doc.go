@@ -18,6 +18,9 @@
 //     Protocol scopes (openid, profile, email, offline_access) pass through unchanged.
 //   - Registration. A token minted before its resource was registered, or after it was deleted and registered
 //     again, is inactive.
+//   - People. For each person, the SCIM User id the adapter serves, [RFC 7643 §3.1], is the sub of that person's
+//     sign-in at the browser client, [OpenID Connect Core 1.0 §8], and GET /Users/{id} lists the permission groups
+//     the person is in.
 //   - Passwords. A password written through SCIM, [RFC 7643 §4.1.1], is temporary: the issuer requires a new one
 //     at the first sign-in, refuses the same value, and collects the person's name there too if the account has
 //     none.
@@ -50,6 +53,7 @@
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 // [RFC 7636 §4.2]: https://www.rfc-editor.org/rfc/rfc7636.html#section-4.2
+// [RFC 7643 §3.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-3.1
 // [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1
 // [RFC 7662 §2.1]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.1
 // [RFC 7662 §2.2]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.2

@@ -54,7 +54,7 @@ type faults struct {
 	leakScope, scopeOnlyWhenNamed                        bool
 	openIntrospection, activeUnknownToken                bool
 	wrongClientID, wrongAudience                         bool
-	pairwiseSubject                                      bool
+	pairwiseSubject, subjectNotUserID                    bool
 	mintUnregistered, activeAfterDelete                  bool
 	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
@@ -533,6 +533,9 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 			}
 		}
 		subject = user.ID
+		if p.faults.subjectNotUserID {
+			subject = "subject-" + user.ID
+		}
 	}
 	authorization, _ := url.Parse(request.AuthorizationURL)
 	query := authorization.Query()

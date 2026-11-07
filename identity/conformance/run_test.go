@@ -90,6 +90,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"signed-out page unregistered on the admin origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.AdminPlane}, "admin origin: sign-out answered"},
 		{"signed-out page unregistered on the dev origin", (*suite).checkSignOut, faults{signedOutUnregistered: protocol.DevPlane}, "dev origin: sign-out answered"},
 		{"refresh refused before sign-out", (*suite).checkSignOut, faults{refreshRefused: true}, "refresh before sign-out"},
+		{"sub is not the SCIM id", (*suite).checkSCIMIDIsSubject, faults{subjectNotUserID: true}, "by sub"},
+		{"get by sub lists no groups", (*suite).checkSCIMIDIsSubject, faults{membersIgnored: true}, "groups"},
 		{"same password accepted", (*suite).checkTemporaryPassword, faults{samePasswordAccepted: true}, "accepted the temporary password"},
 		{"name not collected", (*suite).checkTemporaryPassword, faults{nameNotCollected: true}, "name"},
 		{"still pending after setup", (*suite).checkTemporaryPassword, faults{stillPending: true}, "pendingSetup"},
