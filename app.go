@@ -69,6 +69,10 @@ type App struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Applied map[string]ConfigRevision `json:"applied,omitempty"`
+	// Overlay is the digest of a development app's server source, a blob in the app's upload repository.
+	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
+	// +optional
+	Overlay string `json:"overlay,omitempty" pattern:"^sha256:[0-9a-f]{64}$"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!(has(self.value) && has(self.default))",message="input cannot declare both value and default"
