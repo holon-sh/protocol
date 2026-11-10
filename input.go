@@ -3,6 +3,7 @@ package protocol
 import (
 	"regexp"
 	"slices"
+	"strings"
 )
 
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -14,14 +15,12 @@ const (
 	OTELExporterOTLPProtocolEnv = "OTEL_EXPORTER_OTLP_PROTOCOL"
 )
 
-// reservedEnv names the variables the controller sets in app containers, including the OpenTelemetry settings that carry the session key.
-var reservedEnv = []string{
-	RuntimeConfigEnv, "HOLON_HOOK_CONFIG",
-	OTELServiceNameEnv, OTELResourceAttributesEnv, OTELExporterOTLPEndpointEnv, OTELExporterOTLPProtocolEnv,
-}
+// reservedEnv names the OpenTelemetry variables the controller sets in app containers, which carry the session key.
+// The controller owns every HOLON_ variable too.
+var reservedEnv = []string{OTELServiceNameEnv, OTELResourceAttributesEnv, OTELExporterOTLPEndpointEnv, OTELExporterOTLPProtocolEnv}
 
 func ValidEnvName(value string) bool {
-	return !slices.Contains(reservedEnv, value) && len(value) <= 128 && envName.MatchString(value)
+	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && len(value) <= 128 && envName.MatchString(value)
 }
 
 // ValidEnvTemplates reports whether each template sets a variable env does not declare, from inputs env declares.

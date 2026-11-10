@@ -12,7 +12,7 @@ func WritableApps(apps []App) []App {
 	for i := range result {
 		app := &result[i]
 		app.Release = nil
-		app.Applied = nil
+		app.Applied, app.Supplied = nil, nil
 		app.Requires = slices.Clone(app.Requires)
 		slices.Sort(app.Requires)
 	}
