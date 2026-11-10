@@ -48,5 +48,5 @@ func ValidAppNames(names []string) bool {
 		}
 		seen[name] = true
 	}
-	return len(names) != 0
+	return true
 }
