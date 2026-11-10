@@ -69,6 +69,11 @@ type App struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Applied map[string]ConfigRevision `json:"applied,omitempty"`
+	// Supplied are the values set for the app that it does not declare. The platform adds them at deploy, so the app's
+	// container receives every value set for it.
+	// +kubebuilder:validation:MaxProperties=64
+	// +optional
+	Supplied map[string]Input `json:"supplied,omitempty"`
 	// Overlay is the digest of a development app's server source, a blob in the app's upload repository.
 	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
 	// +optional

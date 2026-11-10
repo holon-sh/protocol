@@ -147,7 +147,7 @@ func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
 }
 
 // VariableRequest names a config value or secret set for one app, in development (for every session, or one) or in
-// production. The app's container receives every value set for it.
+// production.
 type VariableRequest struct {
 	Session  string `json:"session,omitempty"`
 	App      string `json:"app"`
