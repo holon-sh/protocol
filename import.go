@@ -9,7 +9,6 @@ type RegistrySource struct {
 	RegistryRef
 
 	Package *PackageSelection `json:"package,omitempty"`
-	Remote  *struct{}         `json:"remote,omitempty"`
 }
 
 type PackageSelection struct {
