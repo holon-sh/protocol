@@ -138,7 +138,7 @@ type DeleteSessionResultFor[Session any] struct {
 type AppsRequestFor[A any] struct {
 	RequestID  string `json:"requestId,omitempty"`
 	TTLSeconds *int64 `json:"ttlSeconds,omitempty" maximum:"86400" minimum:"1"`
-	Apps       []A    `json:"apps"                 minItems:"1"    nullable:"false" required:"true"`
+	Apps       []A    `json:"apps"                 nullable:"false" required:"true"`
 }
 
 func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {

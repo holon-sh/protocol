@@ -63,7 +63,7 @@ func ValidateAccess(access *AppAccess) error {
 		}
 	}
 	for path, rule := range access.Rules() {
-		if len(rule.Callers) > 256 || len(rule.Callers) > 0 && !ValidAppNames(rule.Callers) {
+		if len(rule.Callers) > 256 || !ValidAppNames(rule.Callers) {
 			return fmt.Errorf("%s: callers must contain at most 256 unique, valid app names", path)
 		}
 		if !oauthscope.ValidScopes(rule.Scopes()) {
