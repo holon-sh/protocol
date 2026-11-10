@@ -155,21 +155,24 @@ type VariableRequest struct {
 	Variable string   `json:"variable"`
 }
 
-// SetValueRequest sets one value for exactly the apps it names, linking them; other apps keep theirs. Without a value,
-// the apps get the value those of them that already have the variable share.
+// SetValueRequest sets one value for exactly the apps it names, linking them. Naming the revision of a listed value
+// replaces it: apps linked to it but not named are unlinked, and without a value the apps get its value. The request
+// fails if no app is linked to that revision any more.
 type SetValueRequest struct {
 	VariableRequest
 
-	Value *string `json:"value,omitempty" nullable:"false"`
-	Note  string  `json:"note,omitempty"  maxLength:"256"`
+	Revision string  `json:"revision,omitempty"`
+	Value    *string `json:"value,omitempty"    nullable:"false"`
+	Note     string  `json:"note,omitempty"     maxLength:"256"`
 }
 
-// ConfigValue is a value and the apps linked to it.
+// ConfigValue is a value and the apps linked to it. Its revision names it in a SetValueRequest that replaces it.
 type ConfigValue struct {
 	Session   string   `json:"session,omitempty"`
 	Apps      []string `json:"apps"            nullable:"false" required:"true"`
 	Kind      string   `json:"kind"`
 	Variable  string   `json:"variable"`
+	Revision  string   `json:"revision"`
 	Value     *string  `json:"value,omitempty"`
 	Note      string   `json:"note,omitempty"`
 	UpdatedAt string   `json:"updatedAt"`
