@@ -146,31 +146,34 @@ func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
 	return DecodeJSONFields(data, (*plain)(input), "apps")
 }
 
-// VariableRequest names a config value or secret set for one app, in development (for every session, or one) or in
-// production.
+// VariableRequest names a config value or secret by the apps it is set for, in development (for every session, or one)
+// or in production. Apps that share a value are linked: each receives it, and setting it for all of them changes it once.
 type VariableRequest struct {
-	Session  string `json:"session,omitempty"`
-	App      string `json:"app"`
-	Kind     string `json:"kind"`
-	Variable string `json:"variable"`
+	Session  string   `json:"session,omitempty"`
+	Apps     []string `json:"apps"              minItems:"1" nullable:"false" required:"true"`
+	Kind     string   `json:"kind"`
+	Variable string   `json:"variable"`
 }
 
+// SetValueRequest sets the value of a variable for its apps, linking them to one value. Without a value, the apps get
+// the value those of them that already have the variable share.
 type SetValueRequest struct {
 	VariableRequest
 
-	Value string `json:"value"`
-	Note  string `json:"note,omitempty" maxLength:"256"`
+	Value *string `json:"value,omitempty"`
+	Note  string  `json:"note,omitempty" maxLength:"256"`
 }
 
+// ConfigValue is a value and the apps linked to it.
 type ConfigValue struct {
-	Session   string  `json:"session,omitempty"`
-	App       string  `json:"app"`
-	Kind      string  `json:"kind"`
-	Variable  string  `json:"variable"`
-	Value     *string `json:"value,omitempty"`
-	Note      string  `json:"note,omitempty"`
-	UpdatedAt string  `json:"updatedAt"`
-	UpdatedBy string  `json:"updatedBy,omitempty"`
+	Session   string   `json:"session,omitempty"`
+	Apps      []string `json:"apps"`
+	Kind      string   `json:"kind"`
+	Variable  string   `json:"variable"`
+	Value     *string  `json:"value,omitempty"`
+	Note      string   `json:"note,omitempty"`
+	UpdatedAt string   `json:"updatedAt"`
+	UpdatedBy string   `json:"updatedBy,omitempty"`
 }
 
 type ConfigValues struct {
