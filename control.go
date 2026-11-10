@@ -146,8 +146,11 @@ func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
 	return DecodeJSONFields(data, (*plain)(input), "apps")
 }
 
+// VariableRequest names a config value or secret set for one app, in development (for every session, or one) or in
+// production. The app's container receives every value set for it.
 type VariableRequest struct {
 	Session  string `json:"session,omitempty"`
+	App      string `json:"app"`
 	Kind     string `json:"kind"`
 	Variable string `json:"variable"`
 }
@@ -161,6 +164,7 @@ type SetValueRequest struct {
 
 type ConfigValue struct {
 	Session   string  `json:"session,omitempty"`
+	App       string  `json:"app"`
 	Kind      string  `json:"kind"`
 	Variable  string  `json:"variable"`
 	Value     *string `json:"value,omitempty"`
