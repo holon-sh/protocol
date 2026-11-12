@@ -7,6 +7,9 @@ import "strings"
 // those headers exactly when it is set.
 const PlatformEnv = "HOLON_PLATFORM"
 
+// DependencyEnvSuffix ends the name of the variable that holds a dependency's endpoint.
+const DependencyEnvSuffix = "_MCP_URL"
+
 func DependencyEnvName(name string) string {
-	return strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_MCP_URL"
+	return strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + DependencyEnvSuffix
 }

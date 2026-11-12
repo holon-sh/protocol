@@ -21,7 +21,7 @@ const (
 var reservedEnv = []string{OTELServiceNameEnv, OTELResourceAttributesEnv, OTELExporterOTLPEndpointEnv, OTELExporterOTLPProtocolEnv}
 
 func ValidEnvName(value string) bool {
-	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && !strings.HasSuffix(value, "_MCP_URL") &&
+	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && !strings.HasSuffix(value, DependencyEnvSuffix) &&
 		len(value) <= 128 && envName.MatchString(value)
 }
 

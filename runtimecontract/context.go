@@ -8,7 +8,7 @@ import (
 )
 
 // Holon's waypoint sets these on a request it admits, after removing any X-Holon-* header the client sent.
-// ContextHeader carries the signed caller context. CallerHeader carries the SPIFFE ID of the app of the same session
+// ContextHeader carries the signed caller context. CallerHeader carries "<session>/<app>", the app of the same session
 // that calls, a lifecycle hook's job calling as its app, and is absent when a person or the platform calls.
 const (
 	ContextHeader = "X-Holon-Context"
