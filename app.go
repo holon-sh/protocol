@@ -58,7 +58,7 @@ type App struct {
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
 	// +kubebuilder:validation:MaxProperties=64
-	// +kubebuilder:validation:XValidation:rule="!('HOLON_MCP_RUNTIME_CONFIG' in self) && !('HOLON_HOOK_CONFIG' in self)",message="Holon runtime configuration is reserved for the controller"
+	// +kubebuilder:validation:XValidation:rule="!('HOLON_PLATFORM' in self) && !('HOLON_HOOK_CONFIG' in self)",message="Holon platform configuration is reserved for the controller"
 	// +optional
 	Env map[string]Input `json:"env,omitempty"`
 	// EnvTemplates sets environment variables from templates over the app's inputs. A variable is set only when every
@@ -74,6 +74,10 @@ type App struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Supplied map[string]Input `json:"supplied,omitempty"`
+	// Imported marks an app installed from an MCP Registry package. Holon hands such third-party code no caller context,
+	// which it could replay against the session's other apps.
+	// +optional
+	Imported bool `json:"imported,omitempty"`
 	// Overlay is the digest of a development app's server source, a blob in the app's upload repository.
 	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
 	// +optional

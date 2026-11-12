@@ -16,11 +16,13 @@ const (
 )
 
 // reservedEnv names the OpenTelemetry variables the controller sets in app containers, which carry the session key.
-// The controller owns every HOLON_ variable too.
+// The controller owns every HOLON_ variable too, and every <NAME>_MCP_URL, so an app's peer URLs are the platform's:
+// an SDK sends the caller's context to them.
 var reservedEnv = []string{OTELServiceNameEnv, OTELResourceAttributesEnv, OTELExporterOTLPEndpointEnv, OTELExporterOTLPProtocolEnv}
 
 func ValidEnvName(value string) bool {
-	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && len(value) <= 128 && envName.MatchString(value)
+	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && !strings.HasSuffix(value, "_MCP_URL") &&
+		len(value) <= 128 && envName.MatchString(value)
 }
 
 // ValidEnvTemplates reports whether each template sets a variable env does not declare, from inputs env declares.
