@@ -16,9 +16,11 @@ const (
 	StartFile        = ".holon/start"
 )
 
-// ReloadFailure is the reply to a reload that did not start the app.
-type ReloadFailure struct {
-	Error string `json:"error"`
+// ReloadReply is the body of a reload's reply: the end of what the app printed while it started, and why it did not
+// start when the reload fails.
+type ReloadReply struct {
+	Error  string `json:"error,omitempty"`
+	Output string `json:"output,omitempty"`
 }
 
 // OverlayRecord is where the platform keeps an app's latest overlay: a blob the token may read from the registry.
