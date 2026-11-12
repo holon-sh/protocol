@@ -18,7 +18,7 @@ type InputName = string
 // +kubebuilder:validation:Pattern="^v-[0-9a-f]{24}$"
 type ConfigRevision = string
 
-// +kubebuilder:validation:XValidation:rule="has(self.remote) ? (!has(self.image) && !has(self.port)) : (has(self.image) && has(self.port))",message="apps require either a remote endpoint or an image and port"
+// +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.overlay)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and overlay, and a port only with an image"
 type App struct {
 	// +optional
 	Icons []Icon `json:"icons,omitempty"`
