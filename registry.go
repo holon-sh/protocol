@@ -41,6 +41,7 @@ func ValidateRegistry(registry string) error {
 }
 
 type RegistryHeader struct {
-	Name  string `json:"name"`
-	Input Input  `json:"input"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Input       Input  `json:"input"`
 }
