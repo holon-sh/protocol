@@ -6,24 +6,20 @@ import (
 	"github.com/holon-sh/protocol"
 )
 
-// A source overlay is a development app's source as one zstd-compressed tar. PrepareFile installs dependencies;
-// StartFile serves the app. An optional BuildFile builds frontend files independent of server imports beside startup.
-// Builds required by the server belong in PrepareFile. A reload succeeds only after
-// both the build and startup succeed. PrepareFile and BuildFile output goes to the reload reply; StartFile output
-// is the app's log. holon-api posts source to ReloadPath and records the latest overlay through OverlayFileEnv.
+// A source overlay is a development app's source as one zstd-compressed tar, with two scripts: PrepareFile installs and
+// builds what the app needs, and StartFile serves it. What PrepareFile prints goes only to a reload's reply; what
+// StartFile prints is the app's log. holon-api posts a save's overlay to ReloadPath on the app, and the platform records
+// the latest one in the file OverlayFileEnv names, which a new container starts from.
 const (
 	ReloadPath       = "/.holon/reload"
 	OverlayFileEnv   = "HOLON_OVERLAY_FILE"
 	OverlayMediaType = "application/vnd.holon.source-overlay.v0.tar+zstd"
 	PrepareFile      = ".holon/prepare"
-	BuildFile        = ".holon/build"
 	StartFile        = ".holon/start"
-	// ConcurrentBuildEnv is set to "1" for preparation by a supervisor that runs BuildFile itself. A prepare script
-	// that carries BuildFile must run it synchronously when this variable is absent, so older supervisors remain safe.
-	ConcurrentBuildEnv = "HOLON_CONCURRENT_BUILD"
 )
 
-// ReloadReply carries the end of preparation and build output, and why a reload failed.
+// ReloadReply is the body of a reload's reply: the end of what PrepareFile printed, and why the app did not start when
+// the reload fails.
 type ReloadReply struct {
 	Error  string `json:"error,omitempty"`
 	Output string `json:"output,omitempty"`
