@@ -7,19 +7,13 @@ func Dependencies(apps []App) []string {
 		byName[app.Name] = app
 	}
 	for _, app := range apps {
-		variables := map[string]bool{}
 		for _, target := range app.Requires {
-			variable := DependencyEnvName(target)
 			if !ValidAppName(target) || target == app.Name {
 				problems = append(problems, "invalid dependency or self-reference: "+app.Name)
 			}
 			if _, ok := byName[target]; !ok {
 				problems = append(problems, "dependency "+app.Name+"."+target+" has no runtime")
 			}
-			if _, exists := app.Env[variable]; variables[variable] || exists {
-				problems = append(problems, "conflicting dependency environment: "+app.Name+"."+variable)
-			}
-			variables[variable] = true
 		}
 	}
 	visiting := map[string]bool{}
