@@ -7,7 +7,8 @@ import (
 )
 
 // A source overlay is a development app's source as one zstd-compressed tar. PrepareFile installs dependencies;
-// StartFile serves the app. An optional BuildFile builds its frontend beside startup. A reload succeeds only after
+// StartFile serves the app. An optional BuildFile builds frontend files independent of server imports beside startup.
+// Builds required by the server belong in PrepareFile. A reload succeeds only after
 // both the build and startup succeed. PrepareFile and BuildFile output goes to the reload reply; StartFile output
 // is the app's log. holon-api posts source to ReloadPath and records the latest overlay through OverlayFileEnv.
 const (
