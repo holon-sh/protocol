@@ -57,6 +57,8 @@ type App struct {
 	Requires []string `json:"requires,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
+	// +optional
+	Limits *Limits `json:"limits,omitempty"`
 	// +kubebuilder:validation:MaxProperties=64
 	// +kubebuilder:validation:XValidation:rule="!('HOLON_PLATFORM' in self) && !('HOLON_HOOK_CONFIG' in self)",message="Holon platform configuration is reserved for the controller"
 	// +optional
