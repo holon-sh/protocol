@@ -78,8 +78,6 @@ type App struct {
 	// which it could replay against the session's other apps.
 	// +optional
 	Imported bool `json:"imported,omitempty"`
-	// Overlay marks a development app that runs from the source holon dev sends it, rather than from an image or a
-	// remote.
 	// +optional
 	Overlay bool `json:"overlay,omitempty"`
 }
