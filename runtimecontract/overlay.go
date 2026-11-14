@@ -6,20 +6,24 @@ import (
 	"github.com/holon-sh/protocol"
 )
 
-// A source overlay is a development app's source as one zstd-compressed tar, with two scripts: PrepareFile installs and
-// builds what the app needs, and StartFile serves it. What PrepareFile prints goes only to a reload's reply; what
-// StartFile prints is the app's log. holon-api posts a save's overlay to ReloadPath on the app, and the platform records
-// the latest one in the file OverlayFileEnv names, which a new container starts from.
 const (
 	ReloadPath       = "/.holon/reload"
 	OverlayFileEnv   = "HOLON_OVERLAY_FILE"
 	OverlayMediaType = "application/vnd.holon.source-overlay.v0.tar+zstd"
-	PrepareFile      = ".holon/prepare"
-	StartFile        = ".holon/start"
+	PlanFile         = ".holon/plan.json"
 )
 
-// ReloadReply is the body of a reload's reply: the end of what PrepareFile printed, and why the app did not start when
-// the reload fails.
+type Plan struct {
+	Install Install    `json:"install"`
+	Prepare [][]string `json:"prepare,omitempty"`
+	Start   []string   `json:"start"`
+}
+
+type Install struct {
+	Inputs   string     `json:"inputs"`
+	Commands [][]string `json:"commands,omitempty"`
+}
+
 type ReloadReply struct {
 	Error  string `json:"error,omitempty"`
 	Output string `json:"output,omitempty"`
