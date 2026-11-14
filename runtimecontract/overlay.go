@@ -10,10 +10,19 @@ const (
 	ReloadPath       = "/.holon/reload"
 	OverlayFileEnv   = "HOLON_OVERLAY_FILE"
 	OverlayMediaType = "application/vnd.holon.source-overlay.v0.tar+zstd"
-	InstallFile      = ".holon/install"
-	PrepareFile      = ".holon/prepare"
-	StartFile        = ".holon/start"
+	PlanFile         = ".holon/plan.json"
 )
+
+type Plan struct {
+	Install Install    `json:"install"`
+	Prepare [][]string `json:"prepare,omitempty"`
+	Start   []string   `json:"start"`
+}
+
+type Install struct {
+	Inputs   string     `json:"inputs"`
+	Commands [][]string `json:"commands,omitempty"`
+}
 
 type ReloadReply struct {
 	Error  string `json:"error,omitempty"`
