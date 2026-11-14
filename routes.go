@@ -11,13 +11,6 @@ import (
 
 var platformPaths = strings.Fields(PlatformPaths)
 
-func WebPath(name string) string {
-	if name == "" {
-		return "/"
-	}
-	return "/" + name + "/"
-}
-
 func ParseWebPath(raw string) (string, bool) {
 	u, err := url.ParseRequestURI(raw)
 	if err != nil || u.IsAbs() || u.RawPath != "" || u.EscapedPath() != u.Path || !strings.HasPrefix(u.Path, "/") ||
