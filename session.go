@@ -3,17 +3,19 @@ package protocol
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 const (
-	ConditionReady         = "Ready"
-	ConditionAvailable     = "Available"
-	ReasonInvalidIdentity  = "InvalidIdentity"
-	ReasonInvalidExpiry    = "InvalidExpiry"
-	ReasonInvalidSpec      = "InvalidSpec"
-	ReasonDeleting         = "Deleting"
-	ReasonLeaseExpired     = "LeaseExpired"
-	ReasonProgressDeadline = "ProgressDeadlineExceeded"
+	ConditionReady         = model.ConditionReady
+	ConditionAvailable     = model.ConditionAvailable
+	ReasonInvalidIdentity  = model.ReasonInvalidIdentity
+	ReasonInvalidExpiry    = model.ReasonInvalidExpiry
+	ReasonInvalidSpec      = model.ReasonInvalidSpec
+	ReasonDeleting         = model.ReasonDeleting
+	ReasonLeaseExpired     = model.ReasonLeaseExpired
+	ReasonProgressDeadline = model.ReasonProgressDeadline
 )
 
 type Owner struct {

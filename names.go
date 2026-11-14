@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	ModeDevelopment = "development"
-	ModeProduction  = "production"
+	ModeDevelopment = model.ModeDevelopment
+	ModeProduction  = model.ModeProduction
 	ProductionName  = "production"
 )
 

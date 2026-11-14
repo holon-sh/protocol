@@ -4,13 +4,15 @@ package rule
 // A Rule is one of the kinds below. A rule with a Name is written once under $defs and referred to wherever it is used.
 type Rule interface{ name() string }
 
-// Text is a string of at least MinBytes and, unless MaxBytes is 0, at most MaxBytes bytes, that matches Pattern when it
-// is set, is none of Excluded, and holds no NUL, CR or LF when SingleLine is set.
+// Text is a string of at least MinBytes and, unless MaxBytes is 0, at most MaxBytes UTF-8 bytes, and unless MaxChars is
+// 0 at most MaxChars characters, that matches Pattern when it is set, is none of Excluded, and holds no NUL, CR or LF
+// when SingleLine is set. A schema counts characters, so it states a byte bound as that many characters.
 type Text struct {
 	Name       string
 	Pattern    string
 	MinBytes   int
 	MaxBytes   int
+	MaxChars   int
 	Excluded   []string
 	SingleLine bool
 }
@@ -55,13 +57,15 @@ type Object struct {
 	Unions  []Union
 }
 
-// A Member that is Nullable may also be null, which a reader takes as the member's absence.
+// A Member that is Nullable may also be null, and one whose ZeroIsAbsent is set may also be its rule's zero value: "",
+// 0 or false. A reader takes either as the member's absence.
 type Member struct {
-	Name        string
-	Rule        Rule
-	Required    bool
-	Nullable    bool
-	Description string
+	Name         string
+	Rule         Rule
+	Required     bool
+	Nullable     bool
+	ZeroIsAbsent bool
+	Description  string
 }
 
 // Union names the variants of the object that holds it, since the wire spreads a union's members across that object.
@@ -69,8 +73,8 @@ type Member struct {
 type Union struct{ Variants []Variant }
 
 // Variant applies when its Select member is present, or when no other variant's is if Select is empty. Of the members
-// that the union's variants name, only Select and Members may then appear. A Nullable member counts as present only when
-// it is not null.
+// that the union's variants name, only Select and Members may then appear. A member that may be absent as null or as its
+// zero value counts as present only when it is neither.
 type Variant struct {
 	Select  string
 	Members []string

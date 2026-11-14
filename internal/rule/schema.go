@@ -45,11 +45,16 @@ func Schema(root Rule, description string, defs ...Rule) ([]byte, error) {
 	if len(e.defs) > 0 {
 		document["$defs"] = e.defs
 	}
+	return Encode(document)
+}
+
+// Encode writes value as the indented JSON of the documents under spec/.
+func Encode(value any) ([]byte, error) {
 	var out bytes.Buffer
 	encoder := json.NewEncoder(&out)
 	encoder.SetEscapeHTML(false)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(document); err != nil {
+	if err := encoder.Encode(value); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -142,8 +147,8 @@ func text(r Text) (map[string]any, error) {
 	if r.MinBytes > 0 {
 		s["minLength"] = (r.MinBytes + 3) / 4
 	}
-	if r.MaxBytes > 0 {
-		s["maxLength"] = r.MaxBytes
+	if r.MaxBytes > 0 || r.MaxChars > 0 {
+		s["maxLength"] = max(r.MaxBytes, r.MaxChars)
 	}
 	if r.Pattern != "" {
 		if err := checkPattern(r.Pattern); err != nil {
@@ -184,16 +189,20 @@ func checkPattern(pattern string) error {
 
 func (e *emitter) object(r Object) (map[string]any, error) {
 	properties := map[string]any{}
-	nullable := map[string]bool{}
+	absent := map[string][]any{}
 	required := []string{}
 	for _, member := range r.Members {
 		s, err := e.schema(member.Rule)
 		if err != nil {
 			return nil, fmt.Errorf("member %s: %w", member.Name, err)
 		}
-		if member.Nullable {
-			s = map[string]any{"anyOf": []any{map[string]any{"type": "null"}, s}}
-			nullable[member.Name] = true
+		values, err := absence(member)
+		if err != nil {
+			return nil, fmt.Errorf("member %s: %w", member.Name, err)
+		}
+		if len(values) > 0 {
+			s = map[string]any{"anyOf": append(slices.Clone(values), s)}
+			absent[member.Name] = values
 		}
 		if member.Description != "" {
 			s["description"] = member.Description
@@ -209,7 +218,7 @@ func (e *emitter) object(r Object) (map[string]any, error) {
 	}
 	var unions []any
 	for _, union := range r.Unions {
-		variants, err := variants(union, properties, nullable)
+		variants, err := variants(union, properties, absent)
 		if err != nil {
 			return nil, err
 		}
@@ -223,9 +232,9 @@ func (e *emitter) object(r Object) (map[string]any, error) {
 	return s, nil
 }
 
-// variants writes each variant as the members it requires and the members of the union it forbids. A nullable member
-// that a variant forbids may still be null, and one that selects it must not be.
-func variants(union Union, properties map[string]any, nullable map[string]bool) ([]any, error) {
+// variants writes each variant as the members it requires and the members of the union it forbids. A member that a
+// variant forbids may still be absent as null or its zero value, and one that selects it must not be.
+func variants(union Union, properties map[string]any, absent map[string][]any) ([]any, error) {
 	var members, selects []string
 	for _, variant := range union.Variants {
 		if variant.Select != "" {
@@ -244,7 +253,7 @@ func variants(union Union, properties map[string]any, nullable map[string]bool) 
 				return nil, fmt.Errorf("a union names %s, which is not a member", member)
 			}
 			if !slices.Contains(allowed, member) {
-				forbidden[member] = absent(nullable[member])
+				forbidden[member] = either(absent[member])
 			} else if member != variant.Select && slices.Contains(selects, member) {
 				return nil, fmt.Errorf("the variant of %q allows %s, which selects another variant", variant.Select, member)
 			}
@@ -252,8 +261,8 @@ func variants(union Union, properties map[string]any, nullable map[string]bool) 
 		s := map[string]any{"properties": forbidden}
 		if variant.Select != "" {
 			s["required"] = []string{variant.Select}
-			if nullable[variant.Select] {
-				forbidden[variant.Select] = map[string]any{"not": absent(true)}
+			if values := absent[variant.Select]; len(values) > 0 {
+				forbidden[variant.Select] = map[string]any{"not": either(values)}
 			}
 		}
 		out = append(out, s)
@@ -261,10 +270,36 @@ func variants(union Union, properties map[string]any, nullable map[string]bool) 
 	return out, nil
 }
 
-// absent is the schema of a member that is taken as absent: none at all, or null when the member is nullable.
-func absent(nullable bool) any {
-	if nullable {
-		return map[string]any{"type": "null"}
+// absence is the schemas of the values that stand for a member's absence.
+func absence(member Member) ([]any, error) {
+	var values []any
+	if member.Nullable {
+		values = append(values, map[string]any{"type": "null"})
 	}
-	return false
+	if member.ZeroIsAbsent {
+		var zero any
+		switch member.Rule.(type) {
+		case Text, Enumeration:
+			zero = ""
+		case Integer:
+			zero = 0
+		case Boolean:
+			zero = false
+		default:
+			return nil, fmt.Errorf("a %T has no zero value", member.Rule)
+		}
+		values = append(values, map[string]any{"const": zero})
+	}
+	return values, nil
+}
+
+// either is the schema that admits each of values, or nothing when there are none.
+func either(values []any) any {
+	switch len(values) {
+	case 0:
+		return false
+	case 1:
+		return values[0]
+	}
+	return map[string]any{"anyOf": values}
 }

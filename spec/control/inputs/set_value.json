@@ -67,27 +67,65 @@
   "description": "The input of the set_value tool. Set one config value or secret for exactly the apps named, linking them.",
   "properties": {
     "apps": {
-      "items": {
-        "$ref": "#/$defs/AppName"
-      },
-      "type": "array",
-      "uniqueItems": true
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      ]
     },
     "kind": {
       "$ref": "#/$defs/VariableKind"
     },
     "note": {
-      "type": "string"
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "not": {
+            "pattern": "[\\x00\\r\\n]"
+          },
+          "type": "string"
+        }
+      ]
     },
     "revision": {
-      "description": "The revision of a listed value that this one replaces.",
-      "type": "string"
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "description": "The revision of a listed value that this one replaces."
     },
     "session": {
-      "$ref": "#/$defs/SessionName"
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/SessionName"
+        }
+      ]
     },
     "value": {
-      "$ref": "#/$defs/InputValue"
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/InputValue"
+        }
+      ]
     },
     "variable": {
       "$ref": "#/$defs/EnvName"

@@ -4,7 +4,14 @@
   "description": "The input of the authorize_lifecycle tool. Authorize a lifecycle operation as the principal that started it.",
   "properties": {
     "accessToken": {
-      "type": "string"
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "type": "string"
+        }
+      ]
     },
     "operation": {
       "type": "string"

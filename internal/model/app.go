@@ -5,8 +5,8 @@ import "github.com/holon-sh/protocol/internal/rule"
 // Input is one variable an app declares. A literal is a value or a default, never both. A secret has neither, which
 // the parse checks, since a variant here is chosen by a member's presence and isSecret may be false.
 var Input = rule.Object{Name: "Input", Members: []rule.Member{
-	{Name: "isRequired", Rule: boolean},
-	{Name: "isSecret", Rule: boolean},
+	{Name: "isRequired", Rule: boolean, ZeroIsAbsent: true},
+	{Name: "isSecret", Rule: boolean, ZeroIsAbsent: true},
 	{Name: "value", Rule: InputValue},
 	{Name: "default", Rule: InputValue},
 }, Unions: []rule.Union{{Variants: []rule.Variant{{Select: "value"}, {Select: "default"}, {}}}}}
@@ -29,7 +29,7 @@ var AppAccess = rule.Object{Name: "AppAccess", Members: []rule.Member{
 
 var OAuthClient = rule.Object{Name: "OAuthClient", Members: []rule.Member{
 	{Name: "clientID", Rule: ClientID, Required: true, Description: "A template whose placeholders each name a config input."},
-	{Name: "clientSecret", Rule: EnvName, Description: "The secret input that holds the client secret."},
+	{Name: "clientSecret", Rule: EnvName, ZeroIsAbsent: true, Description: "The secret input that holds the client secret."},
 }}
 
 var Remote = rule.Object{Name: "Remote", Members: []rule.Member{
@@ -48,9 +48,9 @@ var Egress = rule.List{Name: "Egress", Item: EgressDestination}
 
 var Icon = rule.Object{Name: "Icon", Members: []rule.Member{
 	{Name: "src", Rule: rule.Text{}, Required: true},
-	{Name: "mimeType", Rule: rule.Text{}},
-	{Name: "sizes", Rule: rule.List{Item: rule.Text{}}},
-	{Name: "theme", Rule: rule.Text{}},
+	{Name: "mimeType", Rule: rule.Text{}, ZeroIsAbsent: true},
+	{Name: "sizes", Rule: rule.List{Item: rule.Text{}}, Nullable: true},
+	{Name: "theme", Rule: rule.Text{}, ZeroIsAbsent: true},
 }}
 
 var Hook = rule.Object{Name: "Hook", Members: []rule.Member{
@@ -75,6 +75,14 @@ var Release = rule.Object{Name: "Release", Members: []rule.Member{
 
 var applied = rule.Map{Key: EnvName, Value: ConfigRevision, MaxEntries: MaxEnvEntries}
 
+// appliedRule is the stored form's applied, or for a declaration the empty object, which is all a client may send.
+func appliedRule(declared bool) rule.Rule {
+	if declared {
+		return Empty
+	}
+	return applied
+}
+
 // source is the union of an app's runtime: an image with its port, a remote server, or a development overlay.
 var source = rule.Union{Variants: []rule.Variant{
 	{Select: "image", Members: []string{"port", "args", "envTemplates", "mount"}},
@@ -87,17 +95,18 @@ var source = rule.Union{Variants: []rule.Variant{
 var imagePort = rule.Union{Variants: []rule.Variant{{Select: "port", Members: []string{"image"}}, {}}}
 
 // appMembers are the members an app's declaration and its stored form share. A declaration may hold null for five
-// of them, which today's path reads as absent. The server never writes one.
+// of them, and a zero value for each optional scalar, which today's path reads as absent. The server never writes
+// either.
 func appMembers(declared bool, appliedDescription string) []rule.Member {
 	return []rule.Member{
 		{Name: "icons", Rule: rule.List{Item: Icon}, Nullable: declared},
-		{Name: "mount", Rule: MountPath, Description: "The app's browser path in production. Defaults to /<name>."},
+		{Name: "mount", Rule: MountPath, ZeroIsAbsent: declared, Description: "The app's browser path in production. Defaults to /<name>."},
 		{Name: "oauth", Rule: OAuthClient, Nullable: declared},
 		{Name: "remote", Rule: Remote, Nullable: declared},
 		{Name: "access", Rule: AppAccess, Required: true},
 		{Name: "name", Rule: AppName, Required: true},
-		{Name: "image", Rule: ImageRef},
-		{Name: "port", Rule: Port, Description: "Required with an image, and allowed only with one."},
+		{Name: "image", Rule: ImageRef, ZeroIsAbsent: declared},
+		{Name: "port", Rule: Port, ZeroIsAbsent: declared, Description: "Required with an image, and allowed only with one."},
 		{Name: "args", Rule: rule.List{Item: Template, MaxItems: MaxArgs}, Nullable: declared,
 			Description: "Each replaces one of the image's command arguments, when every input its template names has a value."},
 		{Name: "requires", Rule: rule.List{Item: AppName, Set: true}, Nullable: declared},
@@ -105,9 +114,9 @@ func appMembers(declared bool, appliedDescription string) []rule.Member {
 		{Name: "env", Rule: rule.Map{Key: EnvName, Value: Input, MaxEntries: MaxEnvEntries}},
 		{Name: "envTemplates", Rule: rule.Map{Key: EnvName, Value: Template, MaxEntries: MaxEnvEntries},
 			Description: "Variables set from templates over the app's inputs, when every input a template names has a value."},
-		{Name: "applied", Rule: applied, Description: appliedDescription},
-		{Name: "imported", Rule: boolean, Description: "Marks an app installed from an MCP Registry package."},
-		{Name: "overlay", Rule: Digest, Description: "The digest of a development app's server source."},
+		{Name: "applied", Rule: appliedRule(declared), Description: appliedDescription},
+		{Name: "imported", Rule: boolean, ZeroIsAbsent: declared, Description: "Marks an app installed from an MCP Registry package."},
+		{Name: "overlay", Rule: Digest, ZeroIsAbsent: declared, Description: "The digest of a development app's server source."},
 	}
 }
 

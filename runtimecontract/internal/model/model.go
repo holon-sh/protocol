@@ -2,7 +2,10 @@
 // written from.
 package model
 
-import "github.com/holon-sh/protocol/internal/rule"
+import (
+	control "github.com/holon-sh/protocol/internal/model"
+	"github.com/holon-sh/protocol/internal/rule"
+)
 
 // Issuer is the iss of every context Holon signs.
 const Issuer = "urn:holon:identity"
@@ -18,10 +21,8 @@ var nonEmpty = rule.Text{MinBytes: 1}
 
 var json = rule.Map{Key: rule.Text{}, Value: rule.Opaque{}}
 
-var Owner = rule.Object{Name: "Owner", Members: []rule.Member{
-	{Name: "issuer", Rule: rule.Text{}, Required: true},
-	{Name: "sub", Rule: rule.Text{}, Required: true},
-}}
+// Owner is the principal that started a lifecycle operation.
+var Owner = control.Owner
 
 var HookInvocation = rule.Object{Name: "HookInvocation", Members: []rule.Member{
 	{Name: "operation", Rule: rule.Text{}, Required: true},

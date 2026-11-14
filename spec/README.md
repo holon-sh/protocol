@@ -24,8 +24,12 @@ and reserved values from.
 - `control/inputs/<tool>.json` is each tool's input schema as a self-contained document, with the request's members at
   its root.
 
-Requests are closed: a member the schema does not list is rejected. A result lists what this version writes, and a
-reader tolerates a member or value it does not know.
+Requests are closed: a member the schema does not list is rejected. An optional member may also be its zero value
+(`""`, `0` or `false`), and some may be `null`; either stands for its absence, as it does when a request is decoded.
+
+The result definitions in `schema.json` list what this version writes, as closed objects with value rules. They are not
+the tools' output schemas, which carry no value rules, so that a stored value written before a rule existed can still
+be returned. A reader of a result tolerates a member or value it does not know.
 
 ## artifact
 
@@ -48,8 +52,7 @@ the principal and caller it carries, and the headers that app code must not see.
 
 ## Schema profile
 
-The schemas use only local `$defs`, and only regular expression features that RE2 and ECMA-262 read alike. A length
-bound counts bytes in the contract and characters in JSON Schema, so a schema admits some longer non-ASCII text that the
-parse rejects. The rule model has no boolean kind, so a boolean member is a `Boolean`, which the schema admits as any
-value and the parse checks. A schema states the rules of one value and of one object's members. A rule that it cannot
-state, or that spans an app's members or a session's apps, is the parse's.
+The schemas use only local `$defs`, and only regular expression features that RE2 and ECMA-262 read alike. JSON Schema
+counts a length in characters. A bound that the contract counts in bytes appears as the same number of characters, so
+the schema admits some longer non-ASCII text that the parse rejects. A schema states the rules of one value and of one
+object's members. A rule that it cannot state, or that spans an app's members or a session's apps, is the parse's.

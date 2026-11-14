@@ -9,7 +9,14 @@
   "description": "The input of the get_session tool. Read a session.",
   "properties": {
     "revision": {
-      "$ref": "#/$defs/Revision"
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/Revision"
+        }
+      ]
     },
     "session": {
       "type": "string"

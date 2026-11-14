@@ -61,11 +61,25 @@
       "type": "string"
     },
     "createOnly": {
-      "description": "Writes only if nothing exists yet.",
-      "type": "boolean"
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "boolean"
+        }
+      ],
+      "description": "Writes only if nothing exists yet."
     },
     "expectedRevision": {
-      "$ref": "#/$defs/Revision",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/Revision"
+        }
+      ],
       "description": "Writes only at this revision."
     },
     "policy": {

@@ -2,8 +2,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,17 +57,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	var list bytes.Buffer
-	encoder := json.NewEncoder(&list)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(names); err != nil {
+	list, err := rule.Encode(names)
+	if err != nil {
 		log.Fatal(err)
 	}
 	if err := os.MkdirAll(os.Args[1], 0o755); err != nil {
 		log.Fatal(err)
 	}
-	for file, data := range map[string][]byte{"schema.json": schema, "names.json": list.Bytes()} {
+	for file, data := range map[string][]byte{"schema.json": schema, "names.json": list} {
 		if err := os.WriteFile(filepath.Join(os.Args[1], file), data, 0o644); err != nil {
 			log.Fatal(err)
 		}

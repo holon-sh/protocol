@@ -4,7 +4,14 @@
       "additionalProperties": false,
       "properties": {
         "identifier": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "registryType": {
           "$ref": "#/$defs/RegistryType"
@@ -23,11 +30,25 @@
           "type": "string"
         },
         "package": {
-          "$ref": "#/$defs/PackageSelection"
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/PackageSelection"
+            }
+          ]
         },
         "registry": {
-          "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io.",
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io."
         },
         "version": {
           "description": "Exact server version; ranges and latest are unsupported.",

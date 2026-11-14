@@ -26,7 +26,14 @@
           "oneOf": [
             {
               "properties": {
-                "overlay": false,
+                "image": {
+                  "not": {
+                    "const": ""
+                  }
+                },
+                "overlay": {
+                  "const": ""
+                },
                 "remote": {
                   "type": "null"
                 }
@@ -41,10 +48,18 @@
                   "type": "null"
                 },
                 "envTemplates": false,
-                "image": false,
-                "mount": false,
-                "overlay": false,
-                "port": false,
+                "image": {
+                  "const": ""
+                },
+                "mount": {
+                  "const": ""
+                },
+                "overlay": {
+                  "const": ""
+                },
+                "port": {
+                  "const": 0
+                },
                 "remote": {
                   "not": {
                     "type": "null"
@@ -57,8 +72,17 @@
             },
             {
               "properties": {
-                "image": false,
-                "port": false,
+                "image": {
+                  "const": ""
+                },
+                "overlay": {
+                  "not": {
+                    "const": ""
+                  }
+                },
+                "port": {
+                  "const": 0
+                },
                 "remote": {
                   "type": "null"
                 }
@@ -72,15 +96,25 @@
         {
           "oneOf": [
             {
-              "properties": {},
+              "properties": {
+                "port": {
+                  "not": {
+                    "const": 0
+                  }
+                }
+              },
               "required": [
                 "port"
               ]
             },
             {
               "properties": {
-                "image": false,
-                "port": false
+                "image": {
+                  "const": ""
+                },
+                "port": {
+                  "const": 0
+                }
               }
             }
           ]
@@ -91,15 +125,8 @@
           "$ref": "#/$defs/AppAccess"
         },
         "applied": {
-          "additionalProperties": {
-            "$ref": "#/$defs/ConfigRevision"
-          },
-          "description": "Written by the server. A client may send it only empty.",
-          "maxProperties": 64,
-          "propertyNames": {
-            "$ref": "#/$defs/EnvName"
-          },
-          "type": "object"
+          "$ref": "#/$defs/Empty",
+          "description": "Written by the server. A client may send it only empty."
         },
         "args": {
           "anyOf": [
@@ -154,14 +181,35 @@
           ]
         },
         "image": {
-          "$ref": "#/$defs/ImageRef"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "$ref": "#/$defs/ImageRef"
+            }
+          ]
         },
         "imported": {
-          "description": "Marks an app installed from an MCP Registry package.",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "description": "Marks an app installed from an MCP Registry package."
         },
         "mount": {
-          "$ref": "#/$defs/MountPath",
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "$ref": "#/$defs/MountPath"
+            }
+          ],
           "description": "The app's browser path in production. Defaults to /<name>."
         },
         "name": {
@@ -178,11 +226,25 @@
           ]
         },
         "overlay": {
-          "$ref": "#/$defs/Digest",
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "$ref": "#/$defs/Digest"
+            }
+          ],
           "description": "The digest of a development app's server source."
         },
         "port": {
-          "$ref": "#/$defs/Port",
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "$ref": "#/$defs/Port"
+            }
+          ],
           "description": "Required with an image, and allowed only with one."
         },
         "remote": {
@@ -275,10 +337,6 @@
       },
       "type": "string"
     },
-    "ConfigRevision": {
-      "pattern": "^v-[0-9a-f]{24}$",
-      "type": "string"
-    },
     "Digest": {
       "pattern": "^sha256:[a-f0-9]{64}$",
       "type": "string"
@@ -317,6 +375,11 @@
       },
       "type": "string"
     },
+    "Empty": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
     "EnvName": {
       "maxLength": 128,
       "minLength": 1,
@@ -339,19 +402,40 @@
       "additionalProperties": false,
       "properties": {
         "mimeType": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "sizes": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "src": {
           "type": "string"
         },
         "theme": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ]
         }
       },
       "required": [
@@ -395,10 +479,24 @@
           "$ref": "#/$defs/InputValue"
         },
         "isRequired": {
-          "type": "boolean"
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "boolean"
+            }
+          ]
         },
         "isSecret": {
-          "type": "boolean"
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "boolean"
+            }
+          ]
         },
         "value": {
           "$ref": "#/$defs/InputValue"
@@ -433,7 +531,14 @@
           "description": "A template whose placeholders each name a config input."
         },
         "clientSecret": {
-          "$ref": "#/$defs/EnvName",
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "$ref": "#/$defs/EnvName"
+            }
+          ],
           "description": "The secret input that holds the client secret."
         }
       },
@@ -524,14 +629,28 @@
       "type": "array"
     },
     "requestId": {
-      "$ref": "#/$defs/RequestID",
+      "anyOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/RequestID"
+        }
+      ],
       "description": "Makes a retried request idempotent."
     },
     "ttlSeconds": {
-      "description": "Detaches the new session, which then expires after this many seconds.",
-      "maximum": 86400,
-      "minimum": 1,
-      "type": "integer"
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "maximum": 86400,
+          "minimum": 1,
+          "type": "integer"
+        }
+      ],
+      "description": "Detaches the new session, which then expires after this many seconds."
     }
   },
   "required": [

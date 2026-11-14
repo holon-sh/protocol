@@ -15,7 +15,14 @@
       "type": "string"
     },
     "skipHooks": {
-      "type": "boolean"
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "boolean"
+        }
+      ]
     }
   },
   "required": [

@@ -107,8 +107,9 @@ const RegistryHost = `(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9
 const HeaderNamePattern = "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$"
 
 const (
-	MaxTemplateBytes  = 4096
-	MaxURLBytes       = 2048
+	// The template and URL bounds count characters, as the MaxLength markers on App do, which enforce them today.
+	MaxTemplateChars  = 4096
+	MaxURLChars       = 2048
 	MaxClientIDBytes  = 1024
 	MaxMCPNameBytes   = 1024
 	MaxAccessRules    = 256
@@ -122,6 +123,22 @@ const (
 
 // Architectures are the CPU architectures an app may be built for.
 var Architectures = []string{"amd64", "arm64"}
+
+const (
+	ModeDevelopment = "development"
+	ModeProduction  = "production"
+)
+
+const (
+	ConditionReady         = "Ready"
+	ConditionAvailable     = "Available"
+	ReasonInvalidIdentity  = "InvalidIdentity"
+	ReasonInvalidExpiry    = "InvalidExpiry"
+	ReasonInvalidSpec      = "InvalidSpec"
+	ReasonDeleting         = "Deleting"
+	ReasonLeaseExpired     = "LeaseExpired"
+	ReasonProgressDeadline = "ProgressDeadlineExceeded"
+)
 
 // The kinds of a variable.
 const (
@@ -155,16 +172,16 @@ var (
 	SessionName    = rule.Text{Name: "SessionName", Pattern: anchored(DNSLabelPattern), MinBytes: 1, MaxBytes: MaxDNSLabelBytes}
 	RequestID      = rule.Text{Name: "RequestID", Pattern: anchored(DNSLabelPattern), MinBytes: 1, MaxBytes: MaxDNSLabelBytes}
 	EnvName        = rule.Text{Name: "EnvName", Pattern: EnvNamePattern, MinBytes: 1, MaxBytes: MaxEnvNameBytes, Excluded: ReservedEnv}
-	Template       = rule.Text{Name: "Template", MaxBytes: MaxTemplateBytes, SingleLine: true}
+	Template       = rule.Text{Name: "Template", MaxChars: MaxTemplateChars, SingleLine: true}
 	InputValue     = rule.Text{Name: "InputValue", SingleLine: true}
 	ConfigRevision = rule.Text{Name: "ConfigRevision", Pattern: `^v-[0-9a-f]{24}$`}
 	Digest         = rule.Text{Name: "Digest", Pattern: anchored(SHA256Digest)}
-	ImageRef       = rule.Text{Name: "ImageRef", MaxBytes: MaxURLBytes,
+	ImageRef       = rule.Text{Name: "ImageRef", MaxChars: MaxURLChars,
 		Pattern: anchored(RegistryHost + `/` + RepositoryName + `(?::` + Tag + `)?@` + SHA256Digest)}
 	Port = rule.Integer{Name: "Port", Min: int64p(MinPort), Max: int64p(MaxPort)}
 	// MountPath is a browser path in canonical form, which needs no escape, and ends in / only as /.
-	MountPath  = rule.Text{Name: "MountPath", Pattern: `^/(?:[^?#%\\]*[^/?#%\\])?$`, MaxBytes: MaxURLBytes}
-	RemoteURL  = rule.Text{Name: "RemoteURL", Pattern: `^https://`, MaxBytes: MaxURLBytes, SingleLine: true}
+	MountPath  = rule.Text{Name: "MountPath", Pattern: `^/(?:[^?#%\\]*[^/?#%\\])?$`, MaxChars: MaxURLChars}
+	RemoteURL  = rule.Text{Name: "RemoteURL", Pattern: `^https://`, MaxChars: MaxURLChars, SingleLine: true}
 	HeaderName = rule.Text{Name: "HeaderName", Pattern: HeaderNamePattern}
 	EgressHost = rule.Text{Name: "EgressHost", MinBytes: 1, SingleLine: true}
 	Scope      = rule.Text{Name: "Scope", Pattern: ScopePattern, MinBytes: 1, MaxBytes: MaxScopeBytes}
@@ -179,16 +196,16 @@ func enumeration(name string, values ...string) rule.Enumeration {
 }
 
 var (
-	Mode            = enumeration("Mode", "development", "production")
+	Mode            = enumeration("Mode", ModeDevelopment, ModeProduction)
 	VariableKind    = enumeration("VariableKind", KindConfig, KindSecret)
 	Architecture    = enumeration("Architecture", Architectures...)
 	RegistryType    = enumeration("RegistryType", "oci", "npm", "pypi")
 	Phase           = enumeration("Phase", "Pending", "Applying", "Running", "WaitingForAuthorization", "Failed", "Succeeded", "Cancelled")
 	ImportPhase     = enumeration("ImportPhase", "Pending", "Running", "Succeeded", "Failed")
-	ConditionType   = enumeration("ConditionType", "Ready", "Available", "Accepted", "Degraded", "Expired", "EgressRestricted")
+	ConditionType   = enumeration("ConditionType", ConditionReady, ConditionAvailable, "Accepted", "Degraded", "Expired", "EgressRestricted")
 	ConditionStatus = enumeration("ConditionStatus", "True", "False")
 	ConditionReason = enumeration("ConditionReason",
-		"InvalidIdentity", "InvalidExpiry", "InvalidSpec", "Deleting", "LeaseExpired", "ProgressDeadlineExceeded",
+		ReasonInvalidIdentity, ReasonInvalidExpiry, ReasonInvalidSpec, ReasonDeleting, ReasonLeaseExpired, ReasonProgressDeadline,
 		"LeaseActive", "ReconcileFailed", "Progressing", "ResourcesReady", "WorkloadUnavailable", "Serving",
 		"AccessConfigurationUnavailable", "WaitingForConfiguration", "RuntimeNamespaceTerminating", "Provisioning",
 		"InstallationPolicy", "LifecyclePending", "LifecycleApplying", "LifecycleRunning",

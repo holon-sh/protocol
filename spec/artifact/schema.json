@@ -225,19 +225,40 @@
       "additionalProperties": false,
       "properties": {
         "mimeType": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "sizes": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
         },
         "src": {
           "type": "string"
         },
         "theme": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string"
+            }
+          ]
         }
       },
       "required": [
@@ -276,10 +297,24 @@
           "$ref": "#/$defs/InputValue"
         },
         "isRequired": {
-          "type": "boolean"
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "boolean"
+            }
+          ]
         },
         "isSecret": {
-          "type": "boolean"
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "boolean"
+            }
+          ]
         },
         "value": {
           "$ref": "#/$defs/InputValue"

@@ -2,8 +2,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -113,12 +111,9 @@ func main() {
 }
 
 func encode(value any) []byte {
-	var out bytes.Buffer
-	encoder := json.NewEncoder(&out)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
-	check(encoder.Encode(value))
-	return out.Bytes()
+	data, err := rule.Encode(value)
+	check(err)
+	return data
 }
 
 func check(err error) {
