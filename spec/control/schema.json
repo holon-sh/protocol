@@ -1,0 +1,2074 @@
+{
+  "$defs": {
+    "AccessRule": {
+      "additionalProperties": false,
+      "properties": {
+        "callers": {
+          "description": "The apps that may call. Absent admits every caller, and [] none.",
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "maxItems": 256,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "oauth": {
+          "$ref": "#/$defs/OAuthRequirement",
+          "description": "Absent for public access."
+        }
+      },
+      "type": "object"
+    },
+    "AccountManagement": {
+      "additionalProperties": false,
+      "properties": {
+        "profileURL": {
+          "type": "string"
+        },
+        "securityURL": {
+          "type": "string"
+        },
+        "sessionsURL": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "App": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "overlay": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "image"
+              ]
+            },
+            {
+              "properties": {
+                "args": {
+                  "type": "null"
+                },
+                "envTemplates": false,
+                "image": false,
+                "mount": false,
+                "overlay": false,
+                "port": false,
+                "remote": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "remote"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "overlay"
+              ]
+            }
+          ]
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {},
+              "required": [
+                "port"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AppAccess"
+        },
+        "applied": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigRevision"
+          },
+          "description": "Written by the server. A client may send it only empty.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Template"
+              },
+              "maxItems": 64,
+              "type": "array"
+            }
+          ],
+          "description": "Each replaces one of the image's command arguments, when every input its template names has a value."
+        },
+        "egress": {
+          "$ref": "#/$defs/Egress"
+        },
+        "env": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "envTemplates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Template"
+          },
+          "description": "Variables set from templates over the app's inputs, when every input a template names has a value.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "icons": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Icon"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "image": {
+          "$ref": "#/$defs/ImageRef"
+        },
+        "imported": {
+          "$ref": "#/$defs/Boolean",
+          "description": "Marks an app installed from an MCP Registry package."
+        },
+        "mount": {
+          "$ref": "#/$defs/MountPath",
+          "description": "The app's browser path in production. Defaults to /<name>."
+        },
+        "name": {
+          "$ref": "#/$defs/AppName"
+        },
+        "oauth": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/OAuthClient"
+            }
+          ]
+        },
+        "overlay": {
+          "$ref": "#/$defs/Digest",
+          "description": "The digest of a development app's server source."
+        },
+        "port": {
+          "$ref": "#/$defs/Port",
+          "description": "Required with an image, and allowed only with one."
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Remote"
+            }
+          ]
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/AppName"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        }
+      },
+      "required": [
+        "access",
+        "name"
+      ],
+      "type": "object"
+    },
+    "AppAccess": {
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "$ref": "#/$defs/AccessRule"
+        },
+        "tools": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AccessRule"
+          },
+          "description": "Tool rules replace the server rule.",
+          "maxProperties": 256,
+          "propertyNames": {
+            "$ref": "#/$defs/MCPName"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "server"
+      ],
+      "type": "object"
+    },
+    "AppBuildRef": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactDigest": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "artifactDigest"
+      ],
+      "type": "object"
+    },
+    "AppEgressPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Egress"
+            }
+          ],
+          "description": "Omitted removes this app's ceiling."
+        }
+      },
+      "type": "object"
+    },
+    "AppName": {
+      "maxLength": 49,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "api",
+          "default",
+          "auth",
+          "connections",
+          "mcp",
+          "v2",
+          "registry",
+          ".well-known",
+          "me",
+          "upload-grants",
+          "values",
+          "config",
+          "sessions",
+          "platform",
+          "egress",
+          "identity",
+          "mcpb",
+          "v0.1"
+        ]
+      },
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "Architecture": {
+      "enum": [
+        "amd64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "architecture": {
+          "$ref": "#/$defs/Architecture"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/$defs/Hook"
+          },
+          "type": "array"
+        },
+        "workingDir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "architecture",
+        "workingDir"
+      ],
+      "type": "object"
+    },
+    "AuthorizeLifecycleRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "operation"
+      ],
+      "type": "object"
+    },
+    "Boolean": {},
+    "BuildRuntime": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "not": {
+              "pattern": "[\\x00\\r\\n]"
+            },
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "egress": {
+          "$ref": "#/$defs/Egress"
+        },
+        "env": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "envTemplates": {
+          "additionalProperties": {
+            "not": {
+              "pattern": "[\\x00\\r\\n]"
+            },
+            "type": "string"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "icons": {
+          "items": {
+            "$ref": "#/$defs/Icon"
+          },
+          "type": "array"
+        },
+        "port": {
+          "$ref": "#/$defs/Port"
+        },
+        "requires": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "type": "object"
+    },
+    "ClientID": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "Condition": {
+      "additionalProperties": false,
+      "properties": {
+        "lastTransitionTime": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "An RFC 3339 time."
+        },
+        "message": {
+          "type": "string"
+        },
+        "observedGeneration": {
+          "type": "integer"
+        },
+        "reason": {
+          "$ref": "#/$defs/ConditionReason"
+        },
+        "status": {
+          "$ref": "#/$defs/ConditionStatus"
+        },
+        "type": {
+          "$ref": "#/$defs/ConditionType"
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "lastTransitionTime",
+        "reason",
+        "message"
+      ],
+      "type": "object"
+    },
+    "ConditionReason": {
+      "enum": [
+        "InvalidIdentity",
+        "InvalidExpiry",
+        "InvalidSpec",
+        "Deleting",
+        "LeaseExpired",
+        "ProgressDeadlineExceeded",
+        "LeaseActive",
+        "ReconcileFailed",
+        "Progressing",
+        "ResourcesReady",
+        "WorkloadUnavailable",
+        "Serving",
+        "AccessConfigurationUnavailable",
+        "WaitingForConfiguration",
+        "RuntimeNamespaceTerminating",
+        "Provisioning",
+        "InstallationPolicy",
+        "LifecyclePending",
+        "LifecycleApplying",
+        "LifecycleRunning",
+        "LifecycleWaitingForAuthorization",
+        "LifecycleFailed",
+        "LifecycleSucceeded"
+      ],
+      "type": "string"
+    },
+    "ConditionStatus": {
+      "enum": [
+        "True",
+        "False"
+      ],
+      "type": "string"
+    },
+    "ConditionType": {
+      "enum": [
+        "Ready",
+        "Available",
+        "Accepted",
+        "Degraded",
+        "Expired",
+        "EgressRestricted"
+      ],
+      "type": "string"
+    },
+    "ConfigRevision": {
+      "pattern": "^v-[0-9a-f]{24}$",
+      "type": "string"
+    },
+    "ConfigValue": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/VariableKind"
+        },
+        "note": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "updatedBy": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "variable": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "apps",
+        "kind",
+        "variable",
+        "revision",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "ConfigValues": {
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/ConfigValue"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "type": "object"
+    },
+    "CreateSessionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "items": {
+            "$ref": "#/$defs/App"
+          },
+          "type": "array"
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestID",
+          "description": "Makes a retried request idempotent."
+        },
+        "ttlSeconds": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "maximum": 86400,
+              "minimum": 1,
+              "type": "integer"
+            }
+          ],
+          "description": "Detaches the new session, which then expires after this many seconds."
+        }
+      },
+      "required": [
+        "apps"
+      ],
+      "type": "object"
+    },
+    "DeleteSessionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "session": {
+          "type": "string"
+        },
+        "skipHooks": {
+          "$ref": "#/$defs/Boolean"
+        }
+      },
+      "required": [
+        "session",
+        "expectedRevision"
+      ],
+      "type": "object"
+    },
+    "DeleteSessionResult": {
+      "additionalProperties": false,
+      "properties": {
+        "deleted": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionResponse"
+        }
+      },
+      "required": [
+        "deleted"
+      ],
+      "type": "object"
+    },
+    "DesiredApps": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "items": {
+            "$ref": "#/$defs/App"
+          },
+          "type": "array"
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestID",
+          "description": "Makes a retried request idempotent."
+        }
+      },
+      "required": [
+        "apps"
+      ],
+      "type": "object"
+    },
+    "Digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "Egress": {
+      "items": {
+        "$ref": "#/$defs/EgressDestination"
+      },
+      "type": "array"
+    },
+    "EgressDestination": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/EgressHost",
+          "description": "An exact DNS hostname or unicast IP address. {NAME} stands for a non-secret input."
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "host",
+        "ports"
+      ],
+      "type": "object"
+    },
+    "EgressHost": {
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "EgressRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "app"
+      ],
+      "type": "object"
+    },
+    "EgressResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "$ref": "#/$defs/Egress"
+        },
+        "app": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/EgressStatus"
+        }
+      },
+      "required": [
+        "revision",
+        "app",
+        "status"
+      ],
+      "type": "object"
+    },
+    "EgressStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "degraded": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "pending": {
+          "type": "integer"
+        },
+        "reconciled": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "rolloutComplete": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "targets": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "reconciled",
+        "rolloutComplete",
+        "targets",
+        "pending",
+        "degraded"
+      ],
+      "type": "object"
+    },
+    "Empty": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "EnvName": {
+      "maxLength": 128,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "OTEL_SERVICE_NAME",
+          "OTEL_RESOURCE_ATTRIBUTES",
+          "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "OTEL_EXPORTER_OTLP_PROTOCOL"
+        ]
+      },
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "Error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "loginUrl": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "invalid_request",
+        "not_found",
+        "forbidden",
+        "unauthorized",
+        "unavailable",
+        "conflict",
+        "method_not_allowed",
+        "precondition_failed",
+        "precondition_required",
+        "baseline_unknown",
+        "authorization_required",
+        "insufficient_scope",
+        "rate_limited",
+        "registration_failed"
+      ],
+      "type": "string"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/Error"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "type": "object"
+    },
+    "GetImportRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "GetSessionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "type": "object"
+    },
+    "HeaderName": {
+      "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+      "type": "string"
+    },
+    "Hook": {
+      "additionalProperties": false,
+      "properties": {
+        "checksum": {
+          "$ref": "#/$defs/Digest"
+        },
+        "event": {
+          "$ref": "#/$defs/HookEvent"
+        },
+        "path": {
+          "description": "hooks/[<version>/]<event>[.js|.ts|.py], under the working directory.",
+          "type": "string"
+        },
+        "runtime": {
+          "$ref": "#/$defs/HookRuntime"
+        },
+        "version": {
+          "$ref": "#/$defs/HookVersion",
+          "description": "The lifecycle boundary of an upgrade or downgrade hook."
+        }
+      },
+      "required": [
+        "event",
+        "path",
+        "runtime",
+        "checksum"
+      ],
+      "type": "object"
+    },
+    "HookEvent": {
+      "enum": [
+        "pre-install",
+        "post-install",
+        "pre-delete",
+        "post-delete",
+        "pre-upgrade",
+        "post-upgrade",
+        "pre-downgrade",
+        "post-downgrade"
+      ],
+      "type": "string"
+    },
+    "HookRuntime": {
+      "enum": [
+        "executable",
+        "node",
+        "python"
+      ],
+      "type": "string"
+    },
+    "HookVersion": {
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$",
+      "type": "string"
+    },
+    "Icon": {
+      "additionalProperties": false,
+      "properties": {
+        "mimeType": {
+          "type": "string"
+        },
+        "sizes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "src": {
+          "type": "string"
+        },
+        "theme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "type": "object"
+    },
+    "ImageRef": {
+      "maxLength": 2048,
+      "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*|\\[[0-9A-Fa-f:]+\\])(?::[0-9]+)?/[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*)*(?::[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "Import": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "$ref": "#/$defs/AppBuildRef"
+        },
+        "id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/ImportPhase"
+        }
+      },
+      "required": [
+        "id",
+        "phase"
+      ],
+      "type": "object"
+    },
+    "ImportPhase": {
+      "enum": [
+        "Pending",
+        "Running",
+        "Succeeded",
+        "Failed"
+      ],
+      "type": "string"
+    },
+    "ImportRegistryPackageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "registry": {
+          "$ref": "#/$defs/RegistrySource"
+        }
+      },
+      "required": [
+        "app",
+        "registry"
+      ],
+      "type": "object"
+    },
+    "Info": {
+      "additionalProperties": false,
+      "properties": {
+        "buildArchitectures": {
+          "items": {
+            "$ref": "#/$defs/Architecture"
+          },
+          "type": "array"
+        },
+        "imageRepositoryPrefix": {
+          "type": "string"
+        },
+        "installation": {
+          "$ref": "#/$defs/InstallationReference"
+        },
+        "oauth": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/OAuthInfo"
+            }
+          ],
+          "description": "null when identity is disabled."
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "installation",
+        "oauth",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Input": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "default": false
+          },
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "properties": {
+            "value": false
+          },
+          "required": [
+            "default"
+          ]
+        },
+        {
+          "properties": {
+            "default": false,
+            "value": false
+          }
+        }
+      ],
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/InputValue"
+        },
+        "isRequired": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "isSecret": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/InputValue"
+        }
+      },
+      "type": "object"
+    },
+    "InputValue": {
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "InstallationReference": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "uid": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "uid"
+      ],
+      "type": "object"
+    },
+    "InstalledRelease": {
+      "additionalProperties": false,
+      "properties": {
+        "installed": {
+          "$ref": "#/$defs/ObservedApp"
+        },
+        "name": {
+          "type": "string"
+        },
+        "servingVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "LifecycleOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "initiator": {
+          "$ref": "#/$defs/Owner"
+        },
+        "retry": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "type": "object"
+    },
+    "LifecycleStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "attempt": {
+          "type": "integer"
+        },
+        "deadline": {
+          "type": "string"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "job": {
+          "type": "string"
+        },
+        "jobUID": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/Phase"
+        },
+        "readyApps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "step": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "phase",
+        "step",
+        "attempt"
+      ],
+      "type": "object"
+    },
+    "MCPName": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "Mode": {
+      "enum": [
+        "development",
+        "production"
+      ],
+      "type": "string"
+    },
+    "MountPath": {
+      "maxLength": 2048,
+      "pattern": "^/(?:[^?#%\\\\]*[^/?#%\\\\])?$",
+      "type": "string"
+    },
+    "OAuthClient": {
+      "additionalProperties": false,
+      "properties": {
+        "clientID": {
+          "$ref": "#/$defs/ClientID",
+          "description": "A template whose placeholders each name a config input."
+        },
+        "clientSecret": {
+          "$ref": "#/$defs/EnvName",
+          "description": "The secret input that holds the client secret."
+        }
+      },
+      "required": [
+        "clientID"
+      ],
+      "type": "object"
+    },
+    "OAuthInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "accountManagement": {
+          "$ref": "#/$defs/AccountManagement"
+        },
+        "adminAudience": {
+          "type": "string"
+        },
+        "cliClientID": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "peopleManagement": {
+          "$ref": "#/$defs/Boolean"
+        }
+      },
+      "required": [
+        "issuer",
+        "adminAudience",
+        "cliClientID"
+      ],
+      "type": "object"
+    },
+    "OAuthRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "scopes": {
+          "description": "OAuth scope tokens. Without any, the rule requires authentication only.",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "type": "object"
+    },
+    "ObservedApp": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "overlay": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "image"
+              ]
+            },
+            {
+              "properties": {
+                "args": {
+                  "type": "null"
+                },
+                "envTemplates": false,
+                "image": false,
+                "mount": false,
+                "overlay": false,
+                "port": false,
+                "remote": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "remote"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "overlay"
+              ]
+            }
+          ]
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {},
+              "required": [
+                "port"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AppAccess"
+        },
+        "applied": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigRevision"
+          },
+          "description": "The revision of each value the app runs with.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Template"
+              },
+              "maxItems": 64,
+              "type": "array"
+            }
+          ],
+          "description": "Each replaces one of the image's command arguments, when every input its template names has a value."
+        },
+        "egress": {
+          "$ref": "#/$defs/Egress"
+        },
+        "env": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "envTemplates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Template"
+          },
+          "description": "Variables set from templates over the app's inputs, when every input a template names has a value.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "icons": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Icon"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "image": {
+          "$ref": "#/$defs/ImageRef"
+        },
+        "imported": {
+          "$ref": "#/$defs/Boolean",
+          "description": "Marks an app installed from an MCP Registry package."
+        },
+        "mount": {
+          "$ref": "#/$defs/MountPath",
+          "description": "The app's browser path in production. Defaults to /<name>."
+        },
+        "name": {
+          "$ref": "#/$defs/AppName"
+        },
+        "oauth": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/OAuthClient"
+            }
+          ]
+        },
+        "overlay": {
+          "$ref": "#/$defs/Digest",
+          "description": "The digest of a development app's server source."
+        },
+        "port": {
+          "$ref": "#/$defs/Port",
+          "description": "Required with an image, and allowed only with one."
+        },
+        "release": {
+          "$ref": "#/$defs/Release"
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Remote"
+            }
+          ]
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/AppName"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "supplied": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "description": "Values set for the app that it does not declare.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "access",
+        "name"
+      ],
+      "type": "object"
+    },
+    "Owner": {
+      "additionalProperties": false,
+      "properties": {
+        "issuer": {
+          "type": "string"
+        },
+        "sub": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "issuer",
+        "sub"
+      ],
+      "type": "object"
+    },
+    "PackageSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "registryType": {
+          "$ref": "#/$defs/RegistryType"
+        }
+      },
+      "required": [
+        "registryType"
+      ],
+      "type": "object"
+    },
+    "Phase": {
+      "enum": [
+        "Pending",
+        "Applying",
+        "Running",
+        "WaitingForAuthorization",
+        "Failed",
+        "Succeeded",
+        "Cancelled"
+      ],
+      "type": "string"
+    },
+    "Port": {
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "RegistrySource": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "MCP Registry server identity in namespace/name form.",
+          "type": "string"
+        },
+        "package": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/PackageSelection"
+            }
+          ]
+        },
+        "registry": {
+          "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Exact server version; ranges and latest are unsupported.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "RegistryType": {
+      "enum": [
+        "oci",
+        "npm",
+        "pypi"
+      ],
+      "type": "string"
+    },
+    "Release": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Remote": {
+      "additionalProperties": false,
+      "properties": {
+        "headers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Template"
+          },
+          "description": "Each header's template over the app's inputs.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/HeaderName"
+          },
+          "type": "object"
+        },
+        "url": {
+          "$ref": "#/$defs/RemoteURL",
+          "description": "A template over the app's inputs."
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "RemoteURL": {
+      "maxLength": 2048,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "pattern": "^https://",
+      "type": "string"
+    },
+    "RequestID": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "ResolvedAppBuild": {
+      "additionalProperties": false,
+      "properties": {
+        "appName": {
+          "$ref": "#/$defs/AppName"
+        },
+        "artifactDigest": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "runtime": {
+          "$ref": "#/$defs/BuildRuntime"
+        },
+        "schemaVersion": {
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "serverName": {
+          "type": "string"
+        },
+        "serverVersion": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "unsupportedReasons": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "required": [
+        "repository",
+        "artifactDigest",
+        "schemaVersion",
+        "appName",
+        "runtime",
+        "unsupportedReasons"
+      ],
+      "type": "object"
+    },
+    "RetryLifecycleRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "operation",
+        "expectedRevision"
+      ],
+      "type": "object"
+    },
+    "Revision": {
+      "type": "string"
+    },
+    "Scope": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "type": "string"
+    },
+    "SessionEndpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url"
+      ],
+      "type": "object"
+    },
+    "SessionName": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "SessionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session"
+      ],
+      "type": "object"
+    },
+    "SessionResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/ObservedApp"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "buildArchitectures": {
+          "items": {
+            "$ref": "#/$defs/Architecture"
+          },
+          "type": "array"
+        },
+        "conditions": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Condition"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "detached": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "endpoints": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/SessionEndpoint"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "expiresAt": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "integer"
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/LifecycleStatus"
+        },
+        "name": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/LifecycleOperation"
+        },
+        "releases": {
+          "items": {
+            "$ref": "#/$defs/InstalledRelease"
+          },
+          "type": "array"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "uid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "apps",
+        "name",
+        "endpoints",
+        "conditions",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "SetEgressRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "type": "string"
+        },
+        "createOnly": {
+          "$ref": "#/$defs/Boolean",
+          "description": "Writes only if nothing exists yet."
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision",
+          "description": "Writes only at this revision."
+        },
+        "policy": {
+          "$ref": "#/$defs/AppEgressPolicy"
+        }
+      },
+      "required": [
+        "app",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "SetValueRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/AppName"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/VariableKind"
+        },
+        "note": {
+          "type": "string"
+        },
+        "revision": {
+          "description": "The revision of a listed value that this one replaces.",
+          "type": "string"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionName"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/InputValue"
+            }
+          ]
+        },
+        "variable": {
+          "$ref": "#/$defs/EnvName"
+        }
+      },
+      "required": [
+        "apps",
+        "kind",
+        "variable"
+      ],
+      "type": "object"
+    },
+    "Template": {
+      "maxLength": 4096,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "UpdateSessionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "createOnly": {
+          "$ref": "#/$defs/Boolean",
+          "description": "Writes only if nothing exists yet."
+        },
+        "desired": {
+          "$ref": "#/$defs/DesiredApps"
+        },
+        "expectedRevision": {
+          "$ref": "#/$defs/Revision",
+          "description": "Writes only at this revision."
+        },
+        "remove": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "App names to delete from the session."
+        },
+        "session": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "desired"
+      ],
+      "type": "object"
+    },
+    "UploadGrant": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresAt": {
+          "type": "string"
+        },
+        "grant": {
+          "type": "string"
+        },
+        "registry": {
+          "type": "string"
+        },
+        "repositories": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "grant",
+        "registry",
+        "repositories",
+        "expiresAt"
+      ],
+      "type": "object"
+    },
+    "UploadRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "required": [
+        "apps"
+      ],
+      "type": "object"
+    },
+    "VariableKind": {
+      "enum": [
+        "config",
+        "secret"
+      ],
+      "type": "string"
+    },
+    "VariableRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/AppName"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/VariableKind"
+        },
+        "session": {
+          "$ref": "#/$defs/SessionName"
+        },
+        "variable": {
+          "$ref": "#/$defs/EnvName"
+        }
+      },
+      "required": [
+        "apps",
+        "kind",
+        "variable"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The definitions of Holon's control contract. operations.json names the request and result of each tool."
+}

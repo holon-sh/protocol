@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the list_values tool. List the config values and secrets of the plane, without secret values.",
+  "properties": {},
+  "title": "Empty",
+  "type": "object"
+}

@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "AppName": {
+      "maxLength": 49,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "api",
+          "default",
+          "auth",
+          "connections",
+          "mcp",
+          "v2",
+          "registry",
+          ".well-known",
+          "me",
+          "upload-grants",
+          "values",
+          "config",
+          "sessions",
+          "platform",
+          "egress",
+          "identity",
+          "mcpb",
+          "v0.1"
+        ]
+      },
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "EnvName": {
+      "maxLength": 128,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "OTEL_SERVICE_NAME",
+          "OTEL_RESOURCE_ATTRIBUTES",
+          "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "OTEL_EXPORTER_OTLP_PROTOCOL"
+        ]
+      },
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "InputValue": {
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "SessionName": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "VariableKind": {
+      "enum": [
+        "config",
+        "secret"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the set_value tool. Set one config value or secret for exactly the apps named, linking them.",
+  "properties": {
+    "apps": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      ]
+    },
+    "kind": {
+      "$ref": "#/$defs/VariableKind"
+    },
+    "note": {
+      "type": "string"
+    },
+    "revision": {
+      "description": "The revision of a listed value that this one replaces.",
+      "type": "string"
+    },
+    "session": {
+      "$ref": "#/$defs/SessionName"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/InputValue"
+        }
+      ]
+    },
+    "variable": {
+      "$ref": "#/$defs/EnvName"
+    }
+  },
+  "required": [
+    "apps",
+    "kind",
+    "variable"
+  ],
+  "title": "SetValueRequest",
+  "type": "object"
+}

@@ -1,0 +1,585 @@
+{
+  "$defs": {
+    "AccessRule": {
+      "additionalProperties": false,
+      "properties": {
+        "callers": {
+          "description": "The apps that may call. Absent admits every caller, and [] none.",
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "maxItems": 256,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "oauth": {
+          "$ref": "#/$defs/OAuthRequirement",
+          "description": "Absent for public access."
+        }
+      },
+      "type": "object"
+    },
+    "App": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "overlay": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "image"
+              ]
+            },
+            {
+              "properties": {
+                "args": {
+                  "type": "null"
+                },
+                "envTemplates": false,
+                "image": false,
+                "mount": false,
+                "overlay": false,
+                "port": false,
+                "remote": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "remote"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false,
+                "remote": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "overlay"
+              ]
+            }
+          ]
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {},
+              "required": [
+                "port"
+              ]
+            },
+            {
+              "properties": {
+                "image": false,
+                "port": false
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AppAccess"
+        },
+        "applied": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ConfigRevision"
+          },
+          "description": "Written by the server. A client may send it only empty.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Template"
+              },
+              "maxItems": 64,
+              "type": "array"
+            }
+          ],
+          "description": "Each replaces one of the image's command arguments, when every input its template names has a value."
+        },
+        "egress": {
+          "$ref": "#/$defs/Egress"
+        },
+        "env": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "envTemplates": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Template"
+          },
+          "description": "Variables set from templates over the app's inputs, when every input a template names has a value.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "icons": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Icon"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "image": {
+          "$ref": "#/$defs/ImageRef"
+        },
+        "imported": {
+          "$ref": "#/$defs/Boolean",
+          "description": "Marks an app installed from an MCP Registry package."
+        },
+        "mount": {
+          "$ref": "#/$defs/MountPath",
+          "description": "The app's browser path in production. Defaults to /<name>."
+        },
+        "name": {
+          "$ref": "#/$defs/AppName"
+        },
+        "oauth": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/OAuthClient"
+            }
+          ]
+        },
+        "overlay": {
+          "$ref": "#/$defs/Digest",
+          "description": "The digest of a development app's server source."
+        },
+        "port": {
+          "$ref": "#/$defs/Port",
+          "description": "Required with an image, and allowed only with one."
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Remote"
+            }
+          ]
+        },
+        "requires": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/AppName"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          ]
+        }
+      },
+      "required": [
+        "access",
+        "name"
+      ],
+      "type": "object"
+    },
+    "AppAccess": {
+      "additionalProperties": false,
+      "properties": {
+        "server": {
+          "$ref": "#/$defs/AccessRule"
+        },
+        "tools": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AccessRule"
+          },
+          "description": "Tool rules replace the server rule.",
+          "maxProperties": 256,
+          "propertyNames": {
+            "$ref": "#/$defs/MCPName"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "server"
+      ],
+      "type": "object"
+    },
+    "AppName": {
+      "maxLength": 49,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "api",
+          "default",
+          "auth",
+          "connections",
+          "mcp",
+          "v2",
+          "registry",
+          ".well-known",
+          "me",
+          "upload-grants",
+          "values",
+          "config",
+          "sessions",
+          "platform",
+          "egress",
+          "identity",
+          "mcpb",
+          "v0.1"
+        ]
+      },
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "Boolean": {},
+    "ClientID": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "ConfigRevision": {
+      "pattern": "^v-[0-9a-f]{24}$",
+      "type": "string"
+    },
+    "DesiredApps": {
+      "additionalProperties": false,
+      "properties": {
+        "apps": {
+          "items": {
+            "$ref": "#/$defs/App"
+          },
+          "type": "array"
+        },
+        "requestId": {
+          "$ref": "#/$defs/RequestID",
+          "description": "Makes a retried request idempotent."
+        }
+      },
+      "required": [
+        "apps"
+      ],
+      "type": "object"
+    },
+    "Digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "Egress": {
+      "items": {
+        "$ref": "#/$defs/EgressDestination"
+      },
+      "type": "array"
+    },
+    "EgressDestination": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/EgressHost",
+          "description": "An exact DNS hostname or unicast IP address. {NAME} stands for a non-secret input."
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "host",
+        "ports"
+      ],
+      "type": "object"
+    },
+    "EgressHost": {
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "EnvName": {
+      "maxLength": 128,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "OTEL_SERVICE_NAME",
+          "OTEL_RESOURCE_ATTRIBUTES",
+          "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "OTEL_EXPORTER_OTLP_PROTOCOL"
+        ]
+      },
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "HeaderName": {
+      "pattern": "^[!#$%&'*+.^_`|~0-9A-Za-z-]+$",
+      "type": "string"
+    },
+    "Icon": {
+      "additionalProperties": false,
+      "properties": {
+        "mimeType": {
+          "type": "string"
+        },
+        "sizes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "src": {
+          "type": "string"
+        },
+        "theme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "type": "object"
+    },
+    "ImageRef": {
+      "maxLength": 2048,
+      "pattern": "^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*|\\[[0-9A-Fa-f:]+\\])(?::[0-9]+)?/[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*)*(?::[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127})?@sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "Input": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "default": false
+          },
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "properties": {
+            "value": false
+          },
+          "required": [
+            "default"
+          ]
+        },
+        {
+          "properties": {
+            "default": false,
+            "value": false
+          }
+        }
+      ],
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/InputValue"
+        },
+        "isRequired": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "isSecret": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/InputValue"
+        }
+      },
+      "type": "object"
+    },
+    "InputValue": {
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "MCPName": {
+      "maxLength": 1024,
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "MountPath": {
+      "maxLength": 2048,
+      "pattern": "^/(?:[^?#%\\\\]*[^/?#%\\\\])?$",
+      "type": "string"
+    },
+    "OAuthClient": {
+      "additionalProperties": false,
+      "properties": {
+        "clientID": {
+          "$ref": "#/$defs/ClientID",
+          "description": "A template whose placeholders each name a config input."
+        },
+        "clientSecret": {
+          "$ref": "#/$defs/EnvName",
+          "description": "The secret input that holds the client secret."
+        }
+      },
+      "required": [
+        "clientID"
+      ],
+      "type": "object"
+    },
+    "OAuthRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "scopes": {
+          "description": "OAuth scope tokens. Without any, the rule requires authentication only.",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "type": "object"
+    },
+    "Port": {
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "Remote": {
+      "additionalProperties": false,
+      "properties": {
+        "headers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Template"
+          },
+          "description": "Each header's template over the app's inputs.",
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/HeaderName"
+          },
+          "type": "object"
+        },
+        "url": {
+          "$ref": "#/$defs/RemoteURL",
+          "description": "A template over the app's inputs."
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "RemoteURL": {
+      "maxLength": 2048,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "pattern": "^https://",
+      "type": "string"
+    },
+    "RequestID": {
+      "maxLength": 63,
+      "minLength": 1,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "Revision": {
+      "type": "string"
+    },
+    "Scope": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "type": "string"
+    },
+    "Template": {
+      "maxLength": 4096,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the update_session tool. Declare apps in a session, replacing the stored apps of the same names, and remove others.",
+  "properties": {
+    "createOnly": {
+      "$ref": "#/$defs/Boolean",
+      "description": "Writes only if nothing exists yet."
+    },
+    "desired": {
+      "$ref": "#/$defs/DesiredApps"
+    },
+    "expectedRevision": {
+      "$ref": "#/$defs/Revision",
+      "description": "Writes only at this revision."
+    },
+    "remove": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "App names to delete from the session."
+    },
+    "session": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session",
+    "desired"
+  ],
+  "title": "UpdateSessionRequest",
+  "type": "object"
+}

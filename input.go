@@ -4,25 +4,27 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
-var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+var envName = regexp.MustCompile(model.EnvNamePattern)
 
 const (
-	OTELServiceNameEnv          = "OTEL_SERVICE_NAME"
-	OTELResourceAttributesEnv   = "OTEL_RESOURCE_ATTRIBUTES"
-	OTELExporterOTLPEndpointEnv = "OTEL_EXPORTER_OTLP_ENDPOINT"
-	OTELExporterOTLPProtocolEnv = "OTEL_EXPORTER_OTLP_PROTOCOL"
+	OTELServiceNameEnv          = model.OTELServiceNameEnv
+	OTELResourceAttributesEnv   = model.OTELResourceAttributesEnv
+	OTELExporterOTLPEndpointEnv = model.OTELExporterOTLPEndpointEnv
+	OTELExporterOTLPProtocolEnv = model.OTELExporterOTLPProtocolEnv
 )
 
 // reservedEnv names the OpenTelemetry variables the controller sets in app containers, which carry the session key.
 // The controller owns every HOLON_ variable too, and every <NAME>_MCP_URL, so an app's peer URLs are the platform's:
 // an SDK sends the caller's context to them.
-var reservedEnv = []string{OTELServiceNameEnv, OTELResourceAttributesEnv, OTELExporterOTLPEndpointEnv, OTELExporterOTLPProtocolEnv}
+var reservedEnv = model.ReservedEnv
 
 func ValidEnvName(value string) bool {
-	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, "HOLON_") && !strings.HasSuffix(value, DependencyEnvSuffix) &&
-		len(value) <= 128 && envName.MatchString(value)
+	return !slices.Contains(reservedEnv, value) && !strings.HasPrefix(value, model.ReservedEnvPrefix) && !strings.HasSuffix(value, DependencyEnvSuffix) &&
+		len(value) <= model.MaxEnvNameBytes && envName.MatchString(value)
 }
 
 // ValidEnvTemplates reports whether each template sets a variable env does not declare, from inputs env declares.
@@ -51,9 +53,9 @@ func validTemplate[I any](env map[string]I, template Template) bool {
 
 func (i Input) Kind() string {
 	if i.IsSecret {
-		return "secret"
+		return model.KindSecret
 	}
-	return "config"
+	return model.KindConfig
 }
 
 func (i Input) Source(revision string) (*string, string) {

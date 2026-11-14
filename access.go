@@ -7,6 +7,7 @@ import (
 	"slices"
 	"unicode/utf8"
 
+	"github.com/holon-sh/protocol/internal/model"
 	"github.com/holon-sh/protocol/oauthscope"
 )
 
@@ -47,14 +48,14 @@ func SessionScopes(mode string, apps []App) []string {
 }
 
 func ValidMCPName(name string) bool {
-	return name != "" && len(name) <= 1024 && utf8.ValidString(name) && ValidInputValue(name)
+	return name != "" && len(name) <= model.MaxMCPNameBytes && utf8.ValidString(name) && ValidInputValue(name)
 }
 
 func ValidateAccess(access *AppAccess) error {
 	if access == nil || access.Server == nil {
 		return errors.New("access.server must be explicit; use {} for public access")
 	}
-	if len(access.Tools) > 256 {
+	if len(access.Tools) > model.MaxAccessRules {
 		return errors.New("access.tools must contain at most 256 entries")
 	}
 	for name := range access.Tools {
@@ -63,7 +64,7 @@ func ValidateAccess(access *AppAccess) error {
 		}
 	}
 	for path, rule := range access.Rules() {
-		if len(rule.Callers) > 256 || !ValidAppNames(rule.Callers) {
+		if len(rule.Callers) > model.MaxCallers || !ValidAppNames(rule.Callers) {
 			return fmt.Errorf("%s: callers must contain at most 256 unique, valid app names", path)
 		}
 		if !oauthscope.ValidScopes(rule.Scopes()) {

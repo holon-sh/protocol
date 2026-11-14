@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the renew_session tool. Extend the lease of a development session.",
+  "properties": {
+    "session": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session"
+  ],
+  "title": "SessionRequest",
+  "type": "object"
+}

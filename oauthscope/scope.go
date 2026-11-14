@@ -3,6 +3,8 @@ package oauthscope
 import (
 	"regexp"
 	"slices"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 func ValidScopes(scopes []string) bool {
@@ -10,7 +12,7 @@ func ValidScopes(scopes []string) bool {
 		len(slices.Compact(slices.Sorted(slices.Values(scopes)))) == len(scopes)
 }
 
-const ScopePattern = `^[\x21\x23-\x5B\x5D-\x7E]+$`
+const ScopePattern = model.ScopePattern
 
 var scopePattern = regexp.MustCompile(ScopePattern)
 
@@ -18,5 +20,5 @@ var scopePattern = regexp.MustCompile(ScopePattern)
 //
 // [RFC 6749 §3.3]: https://www.rfc-editor.org/rfc/rfc6749#section-3.3
 func ValidScope(scope string) bool {
-	return len(scope) <= 256 && scopePattern.MatchString(scope)
+	return len(scope) <= model.MaxScopeBytes && scopePattern.MatchString(scope)
 }

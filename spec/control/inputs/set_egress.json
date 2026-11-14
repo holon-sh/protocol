@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "AppEgressPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/Egress"
+            }
+          ],
+          "description": "Omitted removes this app's ceiling."
+        }
+      },
+      "type": "object"
+    },
+    "Boolean": {},
+    "Egress": {
+      "items": {
+        "$ref": "#/$defs/EgressDestination"
+      },
+      "type": "array"
+    },
+    "EgressDestination": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/EgressHost",
+          "description": "An exact DNS hostname or unicast IP address. {NAME} stands for a non-secret input."
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "host",
+        "ports"
+      ],
+      "type": "object"
+    },
+    "EgressHost": {
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "Port": {
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "Revision": {
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the set_egress tool. Set an app's egress ceiling.",
+  "properties": {
+    "app": {
+      "type": "string"
+    },
+    "createOnly": {
+      "$ref": "#/$defs/Boolean",
+      "description": "Writes only if nothing exists yet."
+    },
+    "expectedRevision": {
+      "$ref": "#/$defs/Revision",
+      "description": "Writes only at this revision."
+    },
+    "policy": {
+      "$ref": "#/$defs/AppEgressPolicy"
+    }
+  },
+  "required": [
+    "app",
+    "policy"
+  ],
+  "title": "SetEgressRequest",
+  "type": "object"
+}

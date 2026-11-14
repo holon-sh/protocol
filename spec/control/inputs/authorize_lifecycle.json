@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the authorize_lifecycle tool. Authorize a lifecycle operation as the principal that started it.",
+  "properties": {
+    "accessToken": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "session": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session",
+    "operation"
+  ],
+  "title": "AuthorizeLifecycleRequest",
+  "type": "object"
+}

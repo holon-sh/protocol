@@ -182,11 +182,16 @@ func checkPattern(pattern string) error {
 
 func (e *emitter) object(r Object) (map[string]any, error) {
 	properties := map[string]any{}
+	nullable := map[string]bool{}
 	required := []string{}
 	for _, member := range r.Members {
 		s, err := e.schema(member.Rule)
 		if err != nil {
 			return nil, fmt.Errorf("member %s: %w", member.Name, err)
+		}
+		if member.Nullable {
+			s = map[string]any{"anyOf": []any{map[string]any{"type": "null"}, s}}
+			nullable[member.Name] = true
 		}
 		if member.Description != "" {
 			s["description"] = member.Description
@@ -202,7 +207,7 @@ func (e *emitter) object(r Object) (map[string]any, error) {
 	}
 	var unions []any
 	for _, union := range r.Unions {
-		variants, err := variants(union, properties)
+		variants, err := variants(union, properties, nullable)
 		if err != nil {
 			return nil, err
 		}
@@ -216,8 +221,9 @@ func (e *emitter) object(r Object) (map[string]any, error) {
 	return s, nil
 }
 
-// variants writes each variant as the members it requires and the members of the union it forbids.
-func variants(union Union, properties map[string]any) ([]any, error) {
+// variants writes each variant as the members it requires and the members of the union it forbids. A nullable member
+// that a variant forbids may still be null, and one that selects it must not be.
+func variants(union Union, properties map[string]any, nullable map[string]bool) ([]any, error) {
 	var members, selects []string
 	for _, variant := range union.Variants {
 		if variant.Select != "" {
@@ -236,7 +242,7 @@ func variants(union Union, properties map[string]any) ([]any, error) {
 				return nil, fmt.Errorf("a union names %s, which is not a member", member)
 			}
 			if !slices.Contains(allowed, member) {
-				forbidden[member] = false
+				forbidden[member] = absent(nullable[member])
 			} else if member != variant.Select && slices.Contains(selects, member) {
 				return nil, fmt.Errorf("the variant of %q allows %s, which selects another variant", variant.Select, member)
 			}
@@ -244,8 +250,19 @@ func variants(union Union, properties map[string]any) ([]any, error) {
 		s := map[string]any{"properties": forbidden}
 		if variant.Select != "" {
 			s["required"] = []string{variant.Select}
+			if nullable[variant.Select] {
+				forbidden[variant.Select] = map[string]any{"not": absent(true)}
+			}
 		}
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+// absent is the schema of a member that is taken as absent: none at all, or null when the member is nullable.
+func absent(nullable bool) any {
+	if nullable {
+		return map[string]any{"type": "null"}
+	}
+	return false
 }

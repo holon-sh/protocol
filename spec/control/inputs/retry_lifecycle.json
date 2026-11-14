@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "Revision": {
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the retry_lifecycle tool. Retry a failed lifecycle operation at a revision.",
+  "properties": {
+    "expectedRevision": {
+      "$ref": "#/$defs/Revision"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "session": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session",
+    "operation",
+    "expectedRevision"
+  ],
+  "title": "RetryLifecycleRequest",
+  "type": "object"
+}

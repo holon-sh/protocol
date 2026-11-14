@@ -1,8 +1,12 @@
 package protocol
 
-import "regexp"
+import (
+	"regexp"
 
-const dnsLabelPattern = `[a-z0-9]([-a-z0-9]*[a-z0-9])?`
+	"github.com/holon-sh/protocol/internal/model"
+)
+
+const dnsLabelPattern = model.DNSLabelPattern
 
 var (
 	dnsLabel = regexp.MustCompile(`^` + dnsLabelPattern + `$`)
@@ -10,14 +14,14 @@ var (
 )
 
 func ValidPort(port int) bool {
-	return port >= 1 && port <= 65535
+	return port >= model.MinPort && port <= model.MaxPort
 }
 
 // ValidDNSLabel uses Kubernetes' lowercase [RFC 1123 §2.1] hostname-label profile.
 //
 // [RFC 1123 §2.1]: https://www.rfc-editor.org/rfc/rfc1123.html#section-2.1
 func ValidDNSLabel(value string) bool {
-	return len(value) <= 63 && dnsLabel.MatchString(value)
+	return len(value) <= model.MaxDNSLabelBytes && dnsLabel.MatchString(value)
 }
 
 func ValidDNSName(value string) bool {

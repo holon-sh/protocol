@@ -1,6 +1,10 @@
 package protocol
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/holon-sh/protocol/internal/model"
+)
 
 // PlatformEnv is set to "1" by the controller in every app container. Requests reach such a container only through
 // Holon's waypoint, which verifies X-Holon-Context and replaces any X-Holon-* header a client sent, so an app may trust
@@ -8,7 +12,7 @@ import "strings"
 const PlatformEnv = "HOLON_PLATFORM"
 
 // DependencyEnvSuffix ends the name of the variable that holds a dependency's endpoint.
-const DependencyEnvSuffix = "_MCP_URL"
+const DependencyEnvSuffix = model.DependencyEnvSuffix
 
 func DependencyEnvName(name string) string {
 	return strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + DependencyEnvSuffix

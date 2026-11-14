@@ -1,0 +1,23 @@
+{
+  "$defs": {
+    "Revision": {
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the get_session tool. Read a session.",
+  "properties": {
+    "revision": {
+      "$ref": "#/$defs/Revision"
+    },
+    "session": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "session"
+  ],
+  "title": "GetSessionRequest",
+  "type": "object"
+}

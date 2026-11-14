@@ -1,0 +1,377 @@
+{
+  "$defs": {
+    "AppName": {
+      "maxLength": 49,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "api",
+          "default",
+          "auth",
+          "connections",
+          "mcp",
+          "v2",
+          "registry",
+          ".well-known",
+          "me",
+          "upload-grants",
+          "values",
+          "config",
+          "sessions",
+          "platform",
+          "egress",
+          "identity",
+          "mcpb",
+          "v0.1"
+        ]
+      },
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "type": "string"
+    },
+    "Architecture": {
+      "enum": [
+        "amd64",
+        "arm64"
+      ],
+      "type": "string"
+    },
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "architecture": {
+          "$ref": "#/$defs/Architecture"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/$defs/Hook"
+          },
+          "type": "array"
+        },
+        "workingDir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "architecture",
+        "workingDir"
+      ],
+      "type": "object"
+    },
+    "Boolean": {},
+    "BuildRuntime": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "items": {
+            "not": {
+              "pattern": "[\\x00\\r\\n]"
+            },
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "egress": {
+          "$ref": "#/$defs/Egress"
+        },
+        "env": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Input"
+          },
+          "maxProperties": 64,
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "envTemplates": {
+          "additionalProperties": {
+            "not": {
+              "pattern": "[\\x00\\r\\n]"
+            },
+            "type": "string"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/EnvName"
+          },
+          "type": "object"
+        },
+        "icons": {
+          "items": {
+            "$ref": "#/$defs/Icon"
+          },
+          "type": "array"
+        },
+        "port": {
+          "$ref": "#/$defs/Port"
+        },
+        "requires": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "port"
+      ],
+      "type": "object"
+    },
+    "Digest": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "Egress": {
+      "items": {
+        "$ref": "#/$defs/EgressDestination"
+      },
+      "type": "array"
+    },
+    "EgressDestination": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/EgressHost",
+          "description": "An exact DNS hostname or unicast IP address. {NAME} stands for a non-secret input."
+        },
+        "ports": {
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "host",
+        "ports"
+      ],
+      "type": "object"
+    },
+    "EgressHost": {
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "EnvName": {
+      "maxLength": 128,
+      "minLength": 1,
+      "not": {
+        "enum": [
+          "OTEL_SERVICE_NAME",
+          "OTEL_RESOURCE_ATTRIBUTES",
+          "OTEL_EXPORTER_OTLP_ENDPOINT",
+          "OTEL_EXPORTER_OTLP_PROTOCOL"
+        ]
+      },
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "type": "string"
+    },
+    "Hook": {
+      "additionalProperties": false,
+      "properties": {
+        "checksum": {
+          "$ref": "#/$defs/Digest"
+        },
+        "event": {
+          "$ref": "#/$defs/HookEvent"
+        },
+        "path": {
+          "description": "hooks/[<version>/]<event>[.js|.ts|.py], under the working directory.",
+          "type": "string"
+        },
+        "runtime": {
+          "$ref": "#/$defs/HookRuntime"
+        },
+        "version": {
+          "$ref": "#/$defs/HookVersion",
+          "description": "The lifecycle boundary of an upgrade or downgrade hook."
+        }
+      },
+      "required": [
+        "event",
+        "path",
+        "runtime",
+        "checksum"
+      ],
+      "type": "object"
+    },
+    "HookEvent": {
+      "enum": [
+        "pre-install",
+        "post-install",
+        "pre-delete",
+        "post-delete",
+        "pre-upgrade",
+        "post-upgrade",
+        "pre-downgrade",
+        "post-downgrade"
+      ],
+      "type": "string"
+    },
+    "HookRuntime": {
+      "enum": [
+        "executable",
+        "node",
+        "python"
+      ],
+      "type": "string"
+    },
+    "HookVersion": {
+      "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$",
+      "type": "string"
+    },
+    "Icon": {
+      "additionalProperties": false,
+      "properties": {
+        "mimeType": {
+          "type": "string"
+        },
+        "sizes": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "src": {
+          "type": "string"
+        },
+        "theme": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "src"
+      ],
+      "type": "object"
+    },
+    "Input": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "default": false
+          },
+          "required": [
+            "value"
+          ]
+        },
+        {
+          "properties": {
+            "value": false
+          },
+          "required": [
+            "default"
+          ]
+        },
+        {
+          "properties": {
+            "default": false,
+            "value": false
+          }
+        }
+      ],
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/InputValue"
+        },
+        "isRequired": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "isSecret": {
+          "$ref": "#/$defs/Boolean"
+        },
+        "value": {
+          "$ref": "#/$defs/InputValue"
+        }
+      },
+      "type": "object"
+    },
+    "InputValue": {
+      "not": {
+        "pattern": "[\\x00\\r\\n]"
+      },
+      "type": "string"
+    },
+    "Port": {
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "Release": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The build record stored beside an app's built image. Its $defs also hold a lifecycle hook as an image's release lists it.",
+  "properties": {
+    "appName": {
+      "$ref": "#/$defs/AppName"
+    },
+    "description": {
+      "type": "string"
+    },
+    "runtime": {
+      "$ref": "#/$defs/BuildRuntime"
+    },
+    "schemaVersion": {
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "serverName": {
+      "type": "string"
+    },
+    "serverVersion": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "unsupportedReasons": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "appName",
+    "runtime",
+    "unsupportedReasons"
+  ],
+  "title": "BuildRecord",
+  "type": "object"
+}

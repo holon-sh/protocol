@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "PackageSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "identifier": {
+          "type": "string"
+        },
+        "registryType": {
+          "$ref": "#/$defs/RegistryType"
+        }
+      },
+      "required": [
+        "registryType"
+      ],
+      "type": "object"
+    },
+    "RegistrySource": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "MCP Registry server identity in namespace/name form.",
+          "type": "string"
+        },
+        "package": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/PackageSelection"
+            }
+          ]
+        },
+        "registry": {
+          "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Exact server version; ranges and latest are unsupported.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "RegistryType": {
+      "enum": [
+        "oci",
+        "npm",
+        "pypi"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the import_registry_package tool. Start importing an MCP Registry package as an app build. Served only when the installation has an app registry.",
+  "properties": {
+    "app": {
+      "type": "string"
+    },
+    "registry": {
+      "$ref": "#/$defs/RegistrySource"
+    }
+  },
+  "required": [
+    "app",
+    "registry"
+  ],
+  "title": "ImportRegistryPackageRequest",
+  "type": "object"
+}

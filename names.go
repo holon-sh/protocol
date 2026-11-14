@@ -2,7 +2,8 @@ package protocol
 
 import (
 	"slices"
-	"strings"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 const (
@@ -11,33 +12,14 @@ const (
 	ProductionName  = "production"
 )
 
-const PlatformPaths = `/connections
-/mcp
-/v2
-/registry
-/.well-known
-/me
-/upload-grants
-/values
-/config
-/sessions
-/platform
-/egress
-/identity
-/mcpb
-/v0.1
-`
+const PlatformPaths = model.PlatformPaths
 
 func ReservedAppNames() []string {
-	names := []string{"api", "default", "auth"}
-	for _, path := range strings.Fields(PlatformPaths) {
-		names = append(names, strings.TrimPrefix(path, "/"))
-	}
-	return names
+	return slices.Clone(model.ReservedAppNames)
 }
 
 func ValidAppName(value string) bool {
-	return len(value) <= 49 && ValidDNSLabel(value) && !slices.Contains(ReservedAppNames(), value)
+	return len(value) <= model.MaxAppNameBytes && ValidDNSLabel(value) && !slices.Contains(model.ReservedAppNames, value)
 }
 
 func ValidAppNames(names []string) bool {

@@ -3,6 +3,8 @@ package protocol
 import (
 	"errors"
 	"fmt"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 type BuildRuntime struct {
@@ -27,7 +29,7 @@ type BuildRecord struct {
 }
 
 func (r BuildRecord) Validate() error {
-	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || !ValidPort(int(r.Runtime.Port)) || len(r.Runtime.Env) > 64 {
+	if r.SchemaVersion != model.BuildRecordSchema || !ValidAppName(r.AppName) || !ValidPort(int(r.Runtime.Port)) || len(r.Runtime.Env) > model.MaxEnvEntries {
 		return errors.New("unsupported or invalid app build metadata")
 	}
 	for name, input := range r.Runtime.Env {

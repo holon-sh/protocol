@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 func RemoteURL(raw string) (*url.URL, error) {
@@ -81,7 +84,7 @@ func (r Remote) Validate(env map[string]Input) error {
 //
 // [RFC 9110 §5.6.2]: https://www.rfc-editor.org/rfc/rfc9110#section-5.6.2
 func validHeaderFieldName(name string) bool {
-	return name != "" && !strings.ContainsFunc(name, func(r rune) bool {
-		return !('a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || strings.ContainsRune("!#$%&'*+-.^_`|~", r))
-	})
+	return headerName.MatchString(name)
 }
+
+var headerName = regexp.MustCompile(model.HeaderNamePattern)

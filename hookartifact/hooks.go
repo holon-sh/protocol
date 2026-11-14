@@ -13,18 +13,24 @@ import (
 	"strings"
 
 	"github.com/holon-sh/protocol"
+	"github.com/holon-sh/protocol/internal/model"
 )
 
-// boundaryVersion is a [semantic version] without build metadata.
-//
-// [semantic version]: https://semver.org/spec/v2.0.0.html
-var boundaryVersion = regexp.MustCompile(`^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?$`)
+var boundaryVersion = regexp.MustCompile(model.HookVersionPattern)
 
-var runtimes = map[string]string{".js": "node", ".ts": "node", ".py": "python", "": "executable"}
+var runtimes = model.HookRuntimes
 
-var versionedEvents = map[string]bool{
-	"pre-install": false, "post-install": false, "pre-delete": false, "post-delete": false,
-	"pre-upgrade": true, "post-upgrade": true, "pre-downgrade": true, "post-downgrade": true,
+var versionedEvents = events()
+
+func events() map[string]bool {
+	versioned := map[string]bool{}
+	for _, event := range model.UnversionedHookEvents {
+		versioned[event] = false
+	}
+	for _, event := range model.VersionedHookEvents {
+		versioned[event] = true
+	}
+	return versioned
 }
 
 func VersionedEvent(event string) bool {

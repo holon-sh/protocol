@@ -1,0 +1,190 @@
+[
+  {
+    "tool": "create_session",
+    "go": "protocol.ToolCreateSession",
+    "planes": [
+      "dev"
+    ],
+    "scope": "write",
+    "request": "CreateSessionRequest",
+    "response": "SessionResponse",
+    "description": "Create a development session of the caller with the apps declared."
+  },
+  {
+    "tool": "get_session",
+    "go": "protocol.ToolGetSession",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "read",
+    "request": "GetSessionRequest",
+    "response": "SessionResponse",
+    "description": "Read a session."
+  },
+  {
+    "tool": "update_session",
+    "go": "protocol.ToolUpdateSession",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "UpdateSessionRequest",
+    "response": "SessionResponse",
+    "description": "Declare apps in a session, replacing the stored apps of the same names, and remove others."
+  },
+  {
+    "tool": "delete_session",
+    "go": "protocol.ToolDeleteSession",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "DeleteSessionRequest",
+    "response": "DeleteSessionResult",
+    "description": "Delete a session at a revision."
+  },
+  {
+    "tool": "renew_session",
+    "go": "protocol.ToolRenewSession",
+    "planes": [
+      "dev"
+    ],
+    "scope": "write",
+    "request": "SessionRequest",
+    "response": "SessionResponse",
+    "description": "Extend the lease of a development session."
+  },
+  {
+    "tool": "authorize_lifecycle",
+    "go": "protocol.ToolAuthorizeLifecycle",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "AuthorizeLifecycleRequest",
+    "response": "Empty",
+    "description": "Authorize a lifecycle operation as the principal that started it."
+  },
+  {
+    "tool": "retry_lifecycle",
+    "go": "protocol.ToolRetryLifecycle",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "RetryLifecycleRequest",
+    "response": "SessionResponse",
+    "description": "Retry a failed lifecycle operation at a revision."
+  },
+  {
+    "tool": "issue_upload_grant",
+    "go": "protocol.ToolUploadGrant",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "UploadRequest",
+    "response": "UploadGrant",
+    "description": "Grant upload access to the repositories of the apps named. Served only when the installation has an app registry."
+  },
+  {
+    "tool": "set_value",
+    "go": "protocol.ToolSetValue",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "SetValueRequest",
+    "response": "Empty",
+    "description": "Set one config value or secret for exactly the apps named, linking them."
+  },
+  {
+    "tool": "delete_value",
+    "go": "protocol.ToolDeleteValue",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "VariableRequest",
+    "response": "Empty",
+    "description": "Delete a config value or secret of the apps named."
+  },
+  {
+    "tool": "list_values",
+    "go": "protocol.ToolListValues",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "read",
+    "request": "Empty",
+    "response": "ConfigValues",
+    "description": "List the config values and secrets of the plane, without secret values."
+  },
+  {
+    "tool": "get_egress",
+    "go": "protocol.ToolGetEgress",
+    "planes": [
+      "admin"
+    ],
+    "scope": "read",
+    "request": "EgressRequest",
+    "response": "EgressResponse",
+    "description": "Read an app's egress ceiling and its rollout."
+  },
+  {
+    "tool": "set_egress",
+    "go": "protocol.ToolSetEgress",
+    "planes": [
+      "admin"
+    ],
+    "scope": "write",
+    "request": "SetEgressRequest",
+    "response": "EgressResponse",
+    "description": "Set an app's egress ceiling."
+  },
+  {
+    "tool": "import_registry_package",
+    "go": "protocol.ToolImportRegistryPackage",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "write",
+    "request": "ImportRegistryPackageRequest",
+    "response": "Import",
+    "description": "Start importing an MCP Registry package as an app build. Served only when the installation has an app registry."
+  },
+  {
+    "tool": "get_import",
+    "go": "protocol.ToolGetImport",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "read",
+    "request": "GetImportRequest",
+    "response": "Import",
+    "description": "Read an import. Served only when the installation has an app registry."
+  },
+  {
+    "tool": "resolve_app_build",
+    "go": "protocol.ToolResolveAppBuild",
+    "planes": [
+      "dev",
+      "admin"
+    ],
+    "scope": "read",
+    "request": "AppBuildRef",
+    "response": "ResolvedAppBuild",
+    "description": "Read an app build's record and image."
+  }
+]

@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "Boolean": {},
+    "Revision": {
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the delete_session tool. Delete a session at a revision.",
+  "properties": {
+    "expectedRevision": {
+      "$ref": "#/$defs/Revision"
+    },
+    "session": {
+      "type": "string"
+    },
+    "skipHooks": {
+      "$ref": "#/$defs/Boolean"
+    }
+  },
+  "required": [
+    "session",
+    "expectedRevision"
+  ],
+  "title": "DeleteSessionRequest",
+  "type": "object"
+}

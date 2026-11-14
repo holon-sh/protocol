@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the resolve_app_build tool. Read an app build's record and image.",
+  "properties": {
+    "artifactDigest": {
+      "type": "string"
+    },
+    "repository": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "repository",
+    "artifactDigest"
+  ],
+  "title": "AppBuildRef",
+  "type": "object"
+}

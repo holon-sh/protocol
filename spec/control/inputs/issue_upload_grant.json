@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The input of the issue_upload_grant tool. Grant upload access to the repositories of the apps named. Served only when the installation has an app registry.",
+  "properties": {
+    "apps": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    }
+  },
+  "required": [
+    "apps"
+  ],
+  "title": "UploadRequest",
+  "type": "object"
+}

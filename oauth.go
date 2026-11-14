@@ -3,13 +3,15 @@ package protocol
 import (
 	"errors"
 	"slices"
+
+	"github.com/holon-sh/protocol/internal/model"
 )
 
 func (c *OAuthClient) Validate(env map[string]Input) error {
 	if c == nil {
 		return nil
 	}
-	if c.ClientID == "" || len(c.ClientID) > 1024 || !ValidInputValue(c.ClientID) ||
+	if c.ClientID == "" || len(c.ClientID) > model.MaxClientIDBytes || !ValidInputValue(c.ClientID) ||
 		slices.Contains(TemplateInputs(c.ClientID), c.ClientSecret) {
 		return errors.New("oauth requires a client ID template and an optional secret reference")
 	}

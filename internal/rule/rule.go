@@ -52,10 +52,12 @@ type Object struct {
 	Unions  []Union
 }
 
+// A Member that is Nullable may also be null, which a reader takes as the member's absence.
 type Member struct {
 	Name        string
 	Rule        Rule
 	Required    bool
+	Nullable    bool
 	Description string
 }
 
@@ -64,7 +66,8 @@ type Member struct {
 type Union struct{ Variants []Variant }
 
 // Variant applies when its Select member is present, or when no other variant's is if Select is empty. Of the members
-// that the union's variants name, only Select and Members may then appear.
+// that the union's variants name, only Select and Members may then appear. A Nullable member counts as present only when
+// it is not null.
 type Variant struct {
 	Select  string
 	Members []string

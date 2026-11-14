@@ -1,5 +1,7 @@
 package protocol
 
+//go:generate go run ./internal/generate spec
+
 const (
 	ToolCreateSession      = "create_session"
 	ToolGetSession         = "get_session"
