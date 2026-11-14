@@ -18,7 +18,7 @@ type InputName = string
 // +kubebuilder:validation:Pattern="^v-[0-9a-f]{24}$"
 type ConfigRevision = string
 
-// +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.overlay)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and overlay, and a port only with an image"
+// +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.source)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and source, and a port only with an image"
 type App struct {
 	// +optional
 	Icons []Icon `json:"icons,omitempty"`
@@ -78,10 +78,8 @@ type App struct {
 	// which it could replay against the session's other apps.
 	// +optional
 	Imported bool `json:"imported,omitempty"`
-	// Overlay is the digest of a development app's server source, a blob in the app's upload repository.
-	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
 	// +optional
-	Overlay string `json:"overlay,omitempty"`
+	Source bool `json:"source,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!(has(self.value) && has(self.default))",message="input cannot declare both value and default"
