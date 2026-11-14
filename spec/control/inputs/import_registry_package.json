@@ -23,14 +23,7 @@
           "type": "string"
         },
         "package": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/PackageSelection"
-            }
-          ]
+          "$ref": "#/$defs/PackageSelection"
         },
         "registry": {
           "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io.",

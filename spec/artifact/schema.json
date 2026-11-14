@@ -57,7 +57,6 @@
       ],
       "type": "object"
     },
-    "Boolean": {},
     "BuildRuntime": {
       "additionalProperties": false,
       "properties": {
@@ -229,17 +228,10 @@
           "type": "string"
         },
         "sizes": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ]
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "src": {
           "type": "string"
@@ -284,10 +276,10 @@
           "$ref": "#/$defs/InputValue"
         },
         "isRequired": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "isSecret": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "value": {
           "$ref": "#/$defs/InputValue"

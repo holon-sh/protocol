@@ -61,18 +61,11 @@
   "description": "The input of the delete_value tool. Delete a config value or secret of the apps named.",
   "properties": {
     "apps": {
-      "anyOf": [
-        {
-          "type": "null"
-        },
-        {
-          "items": {
-            "$ref": "#/$defs/AppName"
-          },
-          "type": "array",
-          "uniqueItems": true
-        }
-      ]
+      "items": {
+        "$ref": "#/$defs/AppName"
+      },
+      "type": "array",
+      "uniqueItems": true
     },
     "kind": {
       "$ref": "#/$defs/VariableKind"

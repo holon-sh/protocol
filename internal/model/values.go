@@ -147,9 +147,7 @@ func int64p(value int64) *int64 { return &value }
 
 func anchored(pattern string) string { return "^" + pattern + "$" }
 
-// Boolean stands for a JSON boolean. The rule model has no boolean kind, so the schema admits any value here and the
-// parse checks the type.
-var Boolean = rule.Opaque{Name: "Boolean"}
+var boolean = rule.Boolean{}
 
 var (
 	AppName = rule.Text{Name: "AppName", Pattern: anchored(DNSLabelPattern), MinBytes: 1, MaxBytes: MaxAppNameBytes,

@@ -4,20 +4,12 @@
       "additionalProperties": false,
       "properties": {
         "allow": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Egress"
-            }
-          ],
+          "$ref": "#/$defs/Egress",
           "description": "Omitted removes this app's ceiling."
         }
       },
       "type": "object"
     },
-    "Boolean": {},
     "Egress": {
       "items": {
         "$ref": "#/$defs/EgressDestination"
@@ -69,8 +61,8 @@
       "type": "string"
     },
     "createOnly": {
-      "$ref": "#/$defs/Boolean",
-      "description": "Writes only if nothing exists yet."
+      "description": "Writes only if nothing exists yet.",
+      "type": "boolean"
     },
     "expectedRevision": {
       "$ref": "#/$defs/Revision",

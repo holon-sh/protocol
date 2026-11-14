@@ -157,8 +157,8 @@
           "$ref": "#/$defs/ImageRef"
         },
         "imported": {
-          "$ref": "#/$defs/Boolean",
-          "description": "Marks an app installed from an MCP Registry package."
+          "description": "Marks an app installed from an MCP Registry package.",
+          "type": "boolean"
         },
         "mount": {
           "$ref": "#/$defs/MountPath",
@@ -267,7 +267,6 @@
       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
       "type": "string"
     },
-    "Boolean": {},
     "ClientID": {
       "maxLength": 1024,
       "minLength": 1,
@@ -362,17 +361,10 @@
           "type": "string"
         },
         "sizes": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ]
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "src": {
           "type": "string"
@@ -422,10 +414,10 @@
           "$ref": "#/$defs/InputValue"
         },
         "isRequired": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "isSecret": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "value": {
           "$ref": "#/$defs/InputValue"
@@ -548,8 +540,8 @@
   "description": "The input of the update_session tool. Declare apps in a session, replacing the stored apps of the same names, and remove others.",
   "properties": {
     "createOnly": {
-      "$ref": "#/$defs/Boolean",
-      "description": "Writes only if nothing exists yet."
+      "description": "Writes only if nothing exists yet.",
+      "type": "boolean"
     },
     "desired": {
       "$ref": "#/$defs/DesiredApps"
@@ -559,18 +551,11 @@
       "description": "Writes only at this revision."
     },
     "remove": {
-      "anyOf": [
-        {
-          "type": "null"
-        },
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      ],
-      "description": "App names to delete from the session."
+      "description": "App names to delete from the session.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "session": {
       "type": "string"

@@ -91,6 +91,8 @@ func (e *emitter) body(r Rule) (map[string]any, error) {
 			s["maximum"] = *r.Max
 		}
 		return s, nil
+	case Boolean:
+		return map[string]any{"type": "boolean"}, nil
 	case Enumeration:
 		return map[string]any{"type": "string", "enum": r.Values}, nil
 	case List:

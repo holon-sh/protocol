@@ -172,8 +172,8 @@
           "$ref": "#/$defs/ImageRef"
         },
         "imported": {
-          "$ref": "#/$defs/Boolean",
-          "description": "Marks an app installed from an MCP Registry package."
+          "description": "Marks an app installed from an MCP Registry package.",
+          "type": "boolean"
         },
         "mount": {
           "$ref": "#/$defs/MountPath",
@@ -274,14 +274,7 @@
       "additionalProperties": false,
       "properties": {
         "allow": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Egress"
-            }
-          ],
+          "$ref": "#/$defs/Egress",
           "description": "Omitted removes this app's ceiling."
         }
       },
@@ -363,7 +356,6 @@
       ],
       "type": "object"
     },
-    "Boolean": {},
     "BuildRuntime": {
       "additionalProperties": false,
       "properties": {
@@ -605,17 +597,10 @@
           "description": "Makes a retried request idempotent."
         },
         "ttlSeconds": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "maximum": 86400,
-              "minimum": 1,
-              "type": "integer"
-            }
-          ],
-          "description": "Detaches the new session, which then expires after this many seconds."
+          "description": "Detaches the new session, which then expires after this many seconds.",
+          "maximum": 86400,
+          "minimum": 1,
+          "type": "integer"
         }
       },
       "required": [
@@ -633,7 +618,7 @@
           "type": "string"
         },
         "skipHooks": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         }
       },
       "required": [
@@ -646,7 +631,7 @@
       "additionalProperties": false,
       "properties": {
         "deleted": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "session": {
           "$ref": "#/$defs/SessionResponse"
@@ -753,7 +738,7 @@
       "additionalProperties": false,
       "properties": {
         "degraded": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "message": {
           "type": "string"
@@ -762,10 +747,10 @@
           "type": "integer"
         },
         "reconciled": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "rolloutComplete": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "targets": {
           "type": "integer"
@@ -941,17 +926,10 @@
           "type": "string"
         },
         "sizes": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ]
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "src": {
           "type": "string"
@@ -1085,10 +1063,10 @@
           "$ref": "#/$defs/InputValue"
         },
         "isRequired": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "isSecret": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "value": {
           "$ref": "#/$defs/InputValue"
@@ -1261,7 +1239,7 @@
           "type": "string"
         },
         "peopleManagement": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         }
       },
       "required": [
@@ -1293,9 +1271,7 @@
             {
               "properties": {
                 "overlay": false,
-                "remote": {
-                  "type": "null"
-                }
+                "remote": false
               },
               "required": [
                 "image"
@@ -1303,19 +1279,12 @@
             },
             {
               "properties": {
-                "args": {
-                  "type": "null"
-                },
+                "args": false,
                 "envTemplates": false,
                 "image": false,
                 "mount": false,
                 "overlay": false,
-                "port": false,
-                "remote": {
-                  "not": {
-                    "type": "null"
-                  }
-                }
+                "port": false
               },
               "required": [
                 "remote"
@@ -1325,9 +1294,7 @@
               "properties": {
                 "image": false,
                 "port": false,
-                "remote": {
-                  "type": "null"
-                }
+                "remote": false
               },
               "required": [
                 "overlay"
@@ -1368,19 +1335,12 @@
           "type": "object"
         },
         "args": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "$ref": "#/$defs/Template"
-              },
-              "maxItems": 64,
-              "type": "array"
-            }
-          ],
-          "description": "Each replaces one of the image's command arguments, when every input its template names has a value."
+          "description": "Each replaces one of the image's command arguments, when every input its template names has a value.",
+          "items": {
+            "$ref": "#/$defs/Template"
+          },
+          "maxItems": 64,
+          "type": "array"
         },
         "egress": {
           "$ref": "#/$defs/Egress"
@@ -1407,24 +1367,17 @@
           "type": "object"
         },
         "icons": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "$ref": "#/$defs/Icon"
-              },
-              "type": "array"
-            }
-          ]
+          "items": {
+            "$ref": "#/$defs/Icon"
+          },
+          "type": "array"
         },
         "image": {
           "$ref": "#/$defs/ImageRef"
         },
         "imported": {
-          "$ref": "#/$defs/Boolean",
-          "description": "Marks an app installed from an MCP Registry package."
+          "description": "Marks an app installed from an MCP Registry package.",
+          "type": "boolean"
         },
         "mount": {
           "$ref": "#/$defs/MountPath",
@@ -1434,14 +1387,7 @@
           "$ref": "#/$defs/AppName"
         },
         "oauth": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/OAuthClient"
-            }
-          ]
+          "$ref": "#/$defs/OAuthClient"
         },
         "overlay": {
           "$ref": "#/$defs/Digest",
@@ -1455,28 +1401,14 @@
           "$ref": "#/$defs/Release"
         },
         "remote": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/Remote"
-            }
-          ]
+          "$ref": "#/$defs/Remote"
         },
         "requires": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "$ref": "#/$defs/AppName"
-              },
-              "type": "array",
-              "uniqueItems": true
-            }
-          ]
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "supplied": {
           "additionalProperties": {
@@ -1552,14 +1484,7 @@
           "type": "string"
         },
         "package": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/PackageSelection"
-            }
-          ]
+          "$ref": "#/$defs/PackageSelection"
         },
         "registry": {
           "description": "Registry URL; defaults to https://registry.modelcontextprotocol.io.",
@@ -1798,7 +1723,7 @@
           ]
         },
         "detached": {
-          "$ref": "#/$defs/Boolean"
+          "type": "boolean"
         },
         "endpoints": {
           "anyOf": [
@@ -1858,8 +1783,8 @@
           "type": "string"
         },
         "createOnly": {
-          "$ref": "#/$defs/Boolean",
-          "description": "Writes only if nothing exists yet."
+          "description": "Writes only if nothing exists yet.",
+          "type": "boolean"
         },
         "expectedRevision": {
           "$ref": "#/$defs/Revision",
@@ -1879,18 +1804,11 @@
       "additionalProperties": false,
       "properties": {
         "apps": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "$ref": "#/$defs/AppName"
-              },
-              "type": "array",
-              "uniqueItems": true
-            }
-          ]
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "kind": {
           "$ref": "#/$defs/VariableKind"
@@ -1906,14 +1824,7 @@
           "$ref": "#/$defs/SessionName"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/$defs/InputValue"
-            }
-          ]
+          "$ref": "#/$defs/InputValue"
         },
         "variable": {
           "$ref": "#/$defs/EnvName"
@@ -1937,8 +1848,8 @@
       "additionalProperties": false,
       "properties": {
         "createOnly": {
-          "$ref": "#/$defs/Boolean",
-          "description": "Writes only if nothing exists yet."
+          "description": "Writes only if nothing exists yet.",
+          "type": "boolean"
         },
         "desired": {
           "$ref": "#/$defs/DesiredApps"
@@ -1948,18 +1859,11 @@
           "description": "Writes only at this revision."
         },
         "remove": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ],
-          "description": "App names to delete from the session."
+          "description": "App names to delete from the session.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "session": {
           "type": "string"
@@ -2009,17 +1913,10 @@
       "additionalProperties": false,
       "properties": {
         "apps": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            }
-          ]
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2038,18 +1935,11 @@
       "additionalProperties": false,
       "properties": {
         "apps": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "items": {
-                "$ref": "#/$defs/AppName"
-              },
-              "type": "array",
-              "uniqueItems": true
-            }
-          ]
+          "items": {
+            "$ref": "#/$defs/AppName"
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "kind": {
           "$ref": "#/$defs/VariableKind"

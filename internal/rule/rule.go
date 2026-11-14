@@ -21,6 +21,9 @@ type Integer struct {
 	Min, Max *int64
 }
 
+// Boolean is true or false.
+type Boolean struct{ Name string }
+
 // Enumeration is one of a closed set of strings.
 type Enumeration struct {
 	Name   string
@@ -78,6 +81,7 @@ type Opaque struct{ Name string }
 
 func (r Text) name() string        { return r.Name }
 func (r Integer) name() string     { return r.Name }
+func (r Boolean) name() string     { return r.Name }
 func (r Enumeration) name() string { return r.Name }
 func (r List) name() string        { return r.Name }
 func (r Map) name() string         { return r.Name }

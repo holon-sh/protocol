@@ -13,7 +13,7 @@ func required(name string, r rule.Rule) rule.Member {
 // Empty is the object of a request or result that has no members.
 var Empty = rule.Object{Name: "Empty"}
 
-var ttlSeconds = rule.Member{Name: "ttlSeconds", Rule: rule.Integer{Min: int64p(1), Max: int64p(MaxTTLSeconds)}, Nullable: true,
+var ttlSeconds = rule.Member{Name: "ttlSeconds", Rule: rule.Integer{Min: int64p(1), Max: int64p(MaxTTLSeconds)},
 	Description: "Detaches the new session, which then expires after this many seconds."}
 
 var requestID = rule.Member{Name: "requestId", Rule: RequestID, Description: "Makes a retried request idempotent."}
@@ -30,7 +30,7 @@ var DesiredApps = rule.Object{Name: "DesiredApps", Members: []rule.Member{
 var (
 	session          = required("session", text)
 	expectedRevision = rule.Member{Name: "expectedRevision", Rule: Revision, Description: "Writes only at this revision."}
-	createOnly       = rule.Member{Name: "createOnly", Rule: Boolean, Description: "Writes only if nothing exists yet."}
+	createOnly       = rule.Member{Name: "createOnly", Rule: boolean, Description: "Writes only if nothing exists yet."}
 )
 
 // UpdateSessionRequest names its write precondition: exactly one of createOnly and expectedRevision, which the parse
@@ -38,7 +38,7 @@ var (
 var UpdateSessionRequest = rule.Object{Name: "UpdateSessionRequest", Members: []rule.Member{
 	session, expectedRevision, createOnly,
 	required("desired", DesiredApps),
-	{Name: "remove", Rule: rule.List{Item: text}, Nullable: true, Description: "App names to delete from the session."},
+	{Name: "remove", Rule: rule.List{Item: text}, Description: "App names to delete from the session."},
 }}
 
 var SessionRequest = rule.Object{Name: "SessionRequest", Members: []rule.Member{session}}
@@ -48,7 +48,7 @@ var GetSessionRequest = rule.Object{Name: "GetSessionRequest", Members: []rule.M
 }}
 
 var DeleteSessionRequest = rule.Object{Name: "DeleteSessionRequest", Members: []rule.Member{
-	session, required("expectedRevision", Revision), member("skipHooks", Boolean),
+	session, required("expectedRevision", Revision), member("skipHooks", boolean),
 }}
 
 var AuthorizeLifecycleRequest = rule.Object{Name: "AuthorizeLifecycleRequest", Members: []rule.Member{
@@ -60,14 +60,14 @@ var RetryLifecycleRequest = rule.Object{Name: "RetryLifecycleRequest", Members: 
 }}
 
 var UploadRequest = rule.Object{Name: "UploadRequest", Members: []rule.Member{
-	{Name: "apps", Rule: rule.List{Item: text}, Required: true, Nullable: true},
+	required("apps", rule.List{Item: text}),
 }}
 
 // variableMembers name a value by its scope and the apps it is set for. Without a session, the scope is production on
 // the admin plane and every development session of the caller on the dev plane; with one, that session.
 var variableMembers = []rule.Member{
 	{Name: "session", Rule: SessionName},
-	{Name: "apps", Rule: rule.List{Item: AppName, Set: true}, Required: true, Nullable: true},
+	required("apps", rule.List{Item: AppName, Set: true}),
 	required("kind", VariableKind),
 	required("variable", EnvName),
 }
@@ -76,14 +76,14 @@ var VariableRequest = rule.Object{Name: "VariableRequest", Members: variableMemb
 
 var SetValueRequest = rule.Object{Name: "SetValueRequest", Members: append(variableMembers[:len(variableMembers):len(variableMembers)],
 	rule.Member{Name: "revision", Rule: text, Description: "The revision of a listed value that this one replaces."},
-	rule.Member{Name: "value", Rule: InputValue, Nullable: true},
+	rule.Member{Name: "value", Rule: InputValue},
 	rule.Member{Name: "note", Rule: text},
 )}
 
 var EgressRequest = rule.Object{Name: "EgressRequest", Members: []rule.Member{required("app", text)}}
 
 var AppEgressPolicy = rule.Object{Name: "AppEgressPolicy", Members: []rule.Member{
-	{Name: "allow", Rule: Egress, Nullable: true, Description: "Omitted removes this app's ceiling."},
+	{Name: "allow", Rule: Egress, Description: "Omitted removes this app's ceiling."},
 }}
 
 var SetEgressRequest = rule.Object{Name: "SetEgressRequest", Members: []rule.Member{
@@ -98,7 +98,7 @@ var RegistrySource = rule.Object{Name: "RegistrySource", Members: []rule.Member{
 	{Name: "name", Rule: text, Required: true, Description: "MCP Registry server identity in namespace/name form."},
 	{Name: "version", Rule: text, Required: true, Description: "Exact server version; ranges and latest are unsupported."},
 	{Name: "registry", Rule: text, Description: "Registry URL; defaults to https://registry.modelcontextprotocol.io."},
-	{Name: "package", Rule: PackageSelection, Nullable: true},
+	{Name: "package", Rule: PackageSelection},
 }}
 
 var ImportRegistryPackageRequest = rule.Object{Name: "ImportRegistryPackageRequest", Members: []rule.Member{
@@ -141,7 +141,7 @@ var Condition = rule.Object{Name: "Condition", Members: []rule.Member{
 
 var SessionResponse = rule.Object{Name: "SessionResponse", Members: []rule.Member{
 	member("operation", LifecycleOperation), member("lifecycle", LifecycleStatus),
-	member("releases", rule.List{Item: InstalledRelease}), member("detached", Boolean),
+	member("releases", rule.List{Item: InstalledRelease}), member("detached", boolean),
 	member("buildArchitectures", rule.List{Item: Architecture}), required("uid", text),
 	{Name: "apps", Rule: rule.List{Item: ObservedApp}, Required: true, Nullable: true},
 	member("generation", rule.Integer{}), required("name", text),
@@ -151,7 +151,7 @@ var SessionResponse = rule.Object{Name: "SessionResponse", Members: []rule.Membe
 }}
 
 var DeleteSessionResult = rule.Object{Name: "DeleteSessionResult", Members: []rule.Member{
-	required("deleted", Boolean), member("session", SessionResponse),
+	required("deleted", boolean), member("session", SessionResponse),
 }}
 
 var UploadGrant = rule.Object{Name: "UploadGrant", Members: []rule.Member{
@@ -172,8 +172,8 @@ var ConfigValues = rule.Object{Name: "ConfigValues", Members: []rule.Member{
 }}
 
 var EgressStatus = rule.Object{Name: "EgressStatus", Members: []rule.Member{
-	required("reconciled", Boolean), required("rolloutComplete", Boolean), required("targets", rule.Integer{}),
-	required("pending", rule.Integer{}), required("degraded", Boolean), member("message", text),
+	required("reconciled", boolean), required("rolloutComplete", boolean), required("targets", rule.Integer{}),
+	required("pending", rule.Integer{}), required("degraded", boolean), member("message", text),
 }}
 
 var EgressResponse = rule.Object{Name: "EgressResponse", Members: []rule.Member{
@@ -197,7 +197,7 @@ var AccountManagement = rule.Object{Name: "AccountManagement", Members: []rule.M
 
 var OAuthInfo = rule.Object{Name: "OAuthInfo", Members: []rule.Member{
 	required("issuer", text), required("adminAudience", text), required("cliClientID", text),
-	member("accountManagement", AccountManagement), member("peopleManagement", Boolean),
+	member("accountManagement", AccountManagement), member("peopleManagement", boolean),
 }}
 
 // Info describes an installation's capabilities.

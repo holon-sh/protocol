@@ -5,8 +5,8 @@ import "github.com/holon-sh/protocol/internal/rule"
 // Input is one variable an app declares. A literal is a value or a default, never both. A secret has neither, which
 // the parse checks, since a variant here is chosen by a member's presence and isSecret may be false.
 var Input = rule.Object{Name: "Input", Members: []rule.Member{
-	{Name: "isRequired", Rule: Boolean},
-	{Name: "isSecret", Rule: Boolean},
+	{Name: "isRequired", Rule: boolean},
+	{Name: "isSecret", Rule: boolean},
 	{Name: "value", Rule: InputValue},
 	{Name: "default", Rule: InputValue},
 }, Unions: []rule.Union{{Variants: []rule.Variant{{Select: "value"}, {Select: "default"}, {}}}}}
@@ -49,7 +49,7 @@ var Egress = rule.List{Name: "Egress", Item: EgressDestination}
 var Icon = rule.Object{Name: "Icon", Members: []rule.Member{
 	{Name: "src", Rule: rule.Text{}, Required: true},
 	{Name: "mimeType", Rule: rule.Text{}},
-	{Name: "sizes", Rule: rule.List{Item: rule.Text{}}, Nullable: true},
+	{Name: "sizes", Rule: rule.List{Item: rule.Text{}}},
 	{Name: "theme", Rule: rule.Text{}},
 }}
 
@@ -86,36 +86,37 @@ var source = rule.Union{Variants: []rule.Variant{
 // a port without an image.
 var imagePort = rule.Union{Variants: []rule.Variant{{Select: "port", Members: []string{"image"}}, {}}}
 
-// appMembers are the members an app's declaration and its stored form share.
-func appMembers(appliedDescription string) []rule.Member {
+// appMembers are the members an app's declaration and its stored form share. A declaration may hold null for five
+// of them, which today's path reads as absent. The server never writes one.
+func appMembers(declared bool, appliedDescription string) []rule.Member {
 	return []rule.Member{
-		{Name: "icons", Rule: rule.List{Item: Icon}, Nullable: true},
+		{Name: "icons", Rule: rule.List{Item: Icon}, Nullable: declared},
 		{Name: "mount", Rule: MountPath, Description: "The app's browser path in production. Defaults to /<name>."},
-		{Name: "oauth", Rule: OAuthClient, Nullable: true},
-		{Name: "remote", Rule: Remote, Nullable: true},
+		{Name: "oauth", Rule: OAuthClient, Nullable: declared},
+		{Name: "remote", Rule: Remote, Nullable: declared},
 		{Name: "access", Rule: AppAccess, Required: true},
 		{Name: "name", Rule: AppName, Required: true},
 		{Name: "image", Rule: ImageRef},
 		{Name: "port", Rule: Port, Description: "Required with an image, and allowed only with one."},
-		{Name: "args", Rule: rule.List{Item: Template, MaxItems: MaxArgs}, Nullable: true,
+		{Name: "args", Rule: rule.List{Item: Template, MaxItems: MaxArgs}, Nullable: declared,
 			Description: "Each replaces one of the image's command arguments, when every input its template names has a value."},
-		{Name: "requires", Rule: rule.List{Item: AppName, Set: true}, Nullable: true},
+		{Name: "requires", Rule: rule.List{Item: AppName, Set: true}, Nullable: declared},
 		{Name: "egress", Rule: Egress},
 		{Name: "env", Rule: rule.Map{Key: EnvName, Value: Input, MaxEntries: MaxEnvEntries}},
 		{Name: "envTemplates", Rule: rule.Map{Key: EnvName, Value: Template, MaxEntries: MaxEnvEntries},
 			Description: "Variables set from templates over the app's inputs, when every input a template names has a value."},
 		{Name: "applied", Rule: applied, Description: appliedDescription},
-		{Name: "imported", Rule: Boolean, Description: "Marks an app installed from an MCP Registry package."},
+		{Name: "imported", Rule: boolean, Description: "Marks an app installed from an MCP Registry package."},
 		{Name: "overlay", Rule: Digest, Description: "The digest of a development app's server source."},
 	}
 }
 
 // App is an app as a client declares it.
-var App = rule.Object{Name: "App", Members: appMembers("Written by the server. A client may send it only empty."),
+var App = rule.Object{Name: "App", Members: appMembers(true, "Written by the server. A client may send it only empty."),
 	Unions: []rule.Union{source, imagePort}}
 
 // ObservedApp is an app as the server stores and returns it: its declaration and what the server added.
-var ObservedApp = rule.Object{Name: "ObservedApp", Members: append(appMembers("The revision of each value the app runs with."),
+var ObservedApp = rule.Object{Name: "ObservedApp", Members: append(appMembers(false, "The revision of each value the app runs with."),
 	rule.Member{Name: "release", Rule: Release},
 	rule.Member{Name: "supplied", Rule: rule.Map{Key: EnvName, Value: Input, MaxEntries: MaxEnvEntries},
 		Description: "Values set for the app that it does not declare."},
