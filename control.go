@@ -87,12 +87,12 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Message }
 
-type UpdateSessionRequestFor[Desired any] struct {
+type UpdateSessionRequest struct {
 	SessionRequest
 	WritePrecondition
 
-	Desired Desired  `json:"desired"`
-	Remove  []string `json:"remove,omitempty"`
+	Desired AppsRequest `json:"desired"`
+	Remove  []string    `json:"remove,omitempty"`
 }
 
 type EgressRequest struct {
@@ -130,19 +130,19 @@ type EgressResponse struct {
 	Status   EgressStatus `json:"status"`
 }
 
-type DeleteSessionResultFor[Session any] struct {
-	Deleted bool     `json:"deleted"`
-	Session *Session `json:"session,omitempty"`
+type DeleteSessionResult struct {
+	Deleted bool             `json:"deleted"`
+	Session *SessionResponse `json:"session,omitempty"`
 }
 
-type AppsRequestFor[A any] struct {
+type AppsRequest struct {
 	RequestID  string `json:"requestId,omitempty"`
 	TTLSeconds *int64 `json:"ttlSeconds,omitempty"`
-	Apps       []A    `json:"apps"`
+	Apps       []App  `json:"apps"`
 }
 
-func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
-	type plain AppsRequestFor[A]
+func (input *AppsRequest) UnmarshalJSON(data []byte) error {
+	type plain AppsRequest
 	return DecodeJSONFields(data, (*plain)(input), "apps")
 }
 
