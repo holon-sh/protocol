@@ -46,8 +46,8 @@ const (
 )
 
 type InstallationReference struct {
-	Origin string `json:"origin" minLength:"1"   required:"true"`
-	UID    string `json:"uid"    maxLength:"128" minLength:"1"   required:"true"`
+	Origin string `json:"origin" minLength:"1"`
+	UID    string `json:"uid"    maxLength:"128" minLength:"1"`
 }
 
 func (p InstallationReference) Validate() error {

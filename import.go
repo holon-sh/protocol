@@ -17,12 +17,12 @@ type PackageSelection struct {
 }
 
 type ImportRegistryPackageRequest struct {
-	App      string         `json:"app"      required:"true"`
-	Registry RegistrySource `json:"registry" required:"true"`
+	App      string         `json:"app"`
+	Registry RegistrySource `json:"registry"`
 }
 
 type GetImportRequest struct {
-	ID string `json:"id" required:"true"`
+	ID string `json:"id"`
 }
 
 type Import struct {
