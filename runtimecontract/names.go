@@ -1,7 +1,5 @@
 package runtimecontract
 
-//go:generate go run ./internal/generate ../spec/runtime
-
 // The variables the platform sets in an app's container, besides protocol.PlatformEnv, each dependency's
 // protocol.DependencyEnvName, and the OpenTelemetry variables protocol names. The platform sets PlatformEnv to
 // PlatformEnabled. An SDK sends DependencyTokenEnvSuffix's variable, which the platform does not set, as the bearer

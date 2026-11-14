@@ -3,7 +3,6 @@ package runtimecontract
 import (
 	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
-	"errors"
 	"net/http"
 	"net/url"
 	"slices"
@@ -48,8 +47,8 @@ func Admit(platform, path string, header http.Header) Decision {
 		return rejected
 	}
 	if len(contexts) == 1 {
-		principal, err := admitContext(contexts[0])
-		if err != nil {
+		principal, ok := admitContext(contexts[0])
+		if !ok {
 			return rejected
 		}
 		decision.Context, decision.Principal = contexts[0], principal
@@ -75,39 +74,36 @@ func mcpRoute(path string) bool {
 	return err == nil && segment != "" && name != "." && name != ".." && !strings.Contains(name, "/")
 }
 
-// admitContext reads the principal of a context. Member names match exactly, the last of a repeated member counts,
-// and members other than principal are not read.
-func admitContext(token string) (*Principal, error) {
+// admitContext reads the principal of a context, and reports false for a context the waypoint does not send. Member
+// names match exactly, the last of a repeated member counts, and members other than principal are not read.
+func admitContext(token string) (*Principal, bool) {
 	if !contextForm.MatchString(token) {
-		return nil, errors.New("a context is a compact JWS")
+		return nil, false
 	}
 	payload, err := contextPayload(token)
 	if err != nil {
-		return nil, err
+		return nil, false
 	}
 	// The principal is read apart, so that a repeated principal replaces the one before it instead of merging into it.
 	var claims *struct {
 		Principal jsontext.Value `json:"principal"`
 	}
-	if err := jsonv2.Unmarshal(payload, &claims, jsontext.AllowDuplicateNames(true)); err != nil {
-		return nil, err
-	}
-	if claims == nil {
-		return nil, errors.New("a context's payload is a JSON object")
+	if jsonv2.Unmarshal(payload, &claims, jsontext.AllowDuplicateNames(true)) != nil || claims == nil {
+		return nil, false
 	}
 	if len(claims.Principal) == 0 || claims.Principal.Kind() == 'n' {
-		return nil, nil
+		return nil, true
 	}
 	var principal Principal
-	if err := jsonv2.Unmarshal(claims.Principal, &principal, jsontext.AllowDuplicateNames(true)); err != nil {
-		return nil, err
+	if jsonv2.Unmarshal(claims.Principal, &principal, jsontext.AllowDuplicateNames(true)) != nil {
+		return nil, false
 	}
 	switch jsontext.Value(principal.Act).Kind() {
 	case 'n':
 		principal.Act = nil
 	case 0, '{':
 	default:
-		return nil, errors.New("act is a JSON object")
+		return nil, false
 	}
-	return &principal, nil
+	return &principal, true
 }

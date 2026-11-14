@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/holon-sh/protocol"
-	"github.com/holon-sh/protocol/runtimecontract/internal/model"
 )
 
 // Holon's waypoint sets these on a request it admits, after removing any X-Holon-* header the client sent.
@@ -23,11 +22,11 @@ const (
 )
 
 // ContextIssuer is the iss of every context Holon signs.
-const ContextIssuer = model.Issuer
+const ContextIssuer = "urn:holon:identity"
 
 var (
-	contextForm = regexp.MustCompile(model.Context.Pattern)
-	callerForm  = regexp.MustCompile(model.Caller.Pattern)
+	contextForm = regexp.MustCompile(`^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`)
+	callerForm  = regexp.MustCompile(`^[^/]+/[^/]+$`)
 )
 
 // Claims is the payload of the compact JWS that ContextHeader carries, in the order Holon writes its members.
