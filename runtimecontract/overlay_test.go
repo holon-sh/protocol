@@ -7,7 +7,7 @@ import (
 )
 
 func TestOverlayRecordLocation(t *testing.T) {
-	valid := runtimecontract.OverlayRecord{Registry: "https://registry.example", Repository: "upload/app", Token: "t"}
+	valid := runtimecontract.OverlayRecord{Registry: "https://registry.example", Repository: "upload/app", Tag: "session-uid", Token: "t"}
 	if got, want := valid.Location().String(), "https://registry.example/v2/upload/app"; got != want {
 		t.Fatalf("Location() = %s, want %s", got, want)
 	}
@@ -15,6 +15,7 @@ func TestOverlayRecordLocation(t *testing.T) {
 		"registry without host": func(r *runtimecontract.OverlayRecord) { r.Registry = "https://" },
 		"registry scheme":       func(r *runtimecontract.OverlayRecord) { r.Registry = "ftp://registry.example" },
 		"repository":            func(r *runtimecontract.OverlayRecord) { r.Repository = "" },
+		"tag":                   func(r *runtimecontract.OverlayRecord) { r.Tag = "" },
 		"token":                 func(r *runtimecontract.OverlayRecord) { r.Token = "" },
 	} {
 		record := valid
