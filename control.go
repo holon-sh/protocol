@@ -92,7 +92,7 @@ type UpdateSessionRequestFor[Desired any] struct {
 	WritePrecondition
 
 	Desired Desired  `json:"desired"`
-	Remove  []string `description:"App names to delete from the session." json:"remove,omitempty"`
+	Remove  []string `json:"remove,omitempty"`
 }
 
 type EgressRequest struct {
@@ -108,7 +108,7 @@ type SetEgressRequest struct {
 
 // AppEgressPolicy is the installation's egress ceiling for one app.
 type AppEgressPolicy struct {
-	Allow Egress `description:"Omitted removes this app's ceiling; destinations cap what the app may reach, together with the installation-wide ceiling." json:"allow,omitzero"`
+	Allow Egress `json:"allow,omitzero"`
 }
 
 // EgressStatus reports asynchronous policy reconciliation and rollout.
@@ -137,8 +137,8 @@ type DeleteSessionResultFor[Session any] struct {
 
 type AppsRequestFor[A any] struct {
 	RequestID  string `json:"requestId,omitempty"`
-	TTLSeconds *int64 `json:"ttlSeconds,omitempty" maximum:"86400" minimum:"1"`
-	Apps       []A    `json:"apps"                 nullable:"false" required:"true"`
+	TTLSeconds *int64 `json:"ttlSeconds,omitempty"`
+	Apps       []A    `json:"apps"`
 }
 
 func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
@@ -150,7 +150,7 @@ func (input *AppsRequestFor[A]) UnmarshalJSON(data []byte) error {
 // or in production. Apps that share a value are linked: each receives it, and setting it for all of them changes it once.
 type VariableRequest struct {
 	Session  string   `json:"session,omitempty"`
-	Apps     []string `json:"apps"              minItems:"1" nullable:"false" required:"true"`
+	Apps     []string `json:"apps"`
 	Kind     string   `json:"kind"`
 	Variable string   `json:"variable"`
 }
@@ -162,14 +162,14 @@ type SetValueRequest struct {
 	VariableRequest
 
 	Revision string  `json:"revision,omitempty"`
-	Value    *string `json:"value,omitempty"    nullable:"false"`
-	Note     string  `json:"note,omitempty"     maxLength:"256"`
+	Value    *string `json:"value,omitempty"`
+	Note     string  `json:"note,omitempty"`
 }
 
 // ConfigValue is a value and the apps linked to it. Its revision names it in a SetValueRequest that replaces it.
 type ConfigValue struct {
 	Session   string   `json:"session,omitempty"`
-	Apps      []string `json:"apps"            nullable:"false" required:"true"`
+	Apps      []string `json:"apps"`
 	Kind      string   `json:"kind"`
 	Variable  string   `json:"variable"`
 	Revision  string   `json:"revision"`
@@ -180,12 +180,12 @@ type ConfigValue struct {
 }
 
 type ConfigValues struct {
-	Values []ConfigValue `json:"values" nullable:"false" required:"true"`
+	Values []ConfigValue `json:"values"`
 }
 
 // UploadRequest asks for repository upload authority for named apps.
 type UploadRequest struct {
-	Apps []string `json:"apps" minItems:"1" nullable:"false" required:"true"`
+	Apps []string `json:"apps"`
 }
 
 // UploadGrant authorizes image uploads. Treat the grant as a credential until expiry.

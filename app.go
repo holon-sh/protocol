@@ -33,23 +33,23 @@ type App struct {
 	OAuth *OAuthClient `json:"oauth,omitempty"`
 	// +optional
 	Remote *Remote    `json:"remote,omitempty"`
-	Access *AppAccess `json:"access"           nullable:"false" required:"true"`
+	Access *AppAccess `json:"access"`
 	// +kubebuilder:validation:MaxLength=49
 	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-	Name string `json:"name" maxLength:"49" pattern:"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" required:"true"`
+	Name string `json:"name"`
 	// +kubebuilder:validation:MaxLength=2048
 	// +kubebuilder:validation:Pattern="@sha256:[0-9a-f]{64}$"
 	// +optional
-	Image string `json:"image,omitempty" pattern:"@sha256:[0-9a-f]{64}$"`
+	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
-	Port int32 `json:"port,omitempty" maximum:"65535" minimum:"1"`
+	Port int32 `json:"port,omitempty"`
 	// Args replace the image's command arguments. Each entry is one argument, a template over the app's inputs: the
 	// container receives an entry only when every input it names has a value.
 	// +kubebuilder:validation:MaxItems=64
 	// +optional
-	Args []Template `json:"args,omitempty" maxItems:"64"`
+	Args []Template `json:"args,omitempty"`
 	// +listType=set
 	// +kubebuilder:validation:items:MaxLength=49
 	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
@@ -112,7 +112,7 @@ type AccessRule struct {
 	// +kubebuilder:validation:items:MaxLength=49
 	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
 	// +optional
-	Callers []string `description:"App callers: omit for all; [] denies all." json:"callers,omitzero" maxItems:"256" nullable:"false" uniqueItems:"true"`
+	Callers []string `description:"App callers: omit for all; [] denies all." json:"callers,omitzero" maxItems:"256" uniqueItems:"true"`
 }
 
 type OAuthRequirement struct {
@@ -125,7 +125,7 @@ type OAuthRequirement struct {
 }
 
 type AppAccess struct {
-	Server *AccessRule `description:"{} is public to all callers; oauth: {} requires authentication; callers: [...] admits only those apps." json:"server" nullable:"false" required:"true"`
+	Server *AccessRule `description:"{} is public to all callers; oauth: {} requires authentication; callers: [...] admits only those apps." json:"server" required:"true"`
 	// +nullable
 	// +kubebuilder:validation:MaxProperties=256
 	// +optional
@@ -138,7 +138,7 @@ type OAuthClient struct {
 	// a non-secret one without a value or default, and a placeholder never names the ClientSecret key.
 	// +kubebuilder:validation:MaxLength=1024
 	// +kubebuilder:validation:Pattern="^[^\\x00\\r\\n]+$"
-	ClientID string `json:"clientID" required:"true"`
+	ClientID string `json:"clientID"`
 	// +kubebuilder:validation:Pattern="^[A-Za-z_][A-Za-z0-9_]*$"
 	// +optional
 	ClientSecret InputName `json:"clientSecret,omitempty"`
@@ -149,7 +149,7 @@ type Remote struct {
 	// URL is a template over the app's inputs.
 	// +kubebuilder:validation:MaxLength=2048
 	// +kubebuilder:validation:XValidation:rule="self.startsWith('https://')",message="remote endpoints must use HTTPS"
-	URL string `json:"url" required:"true"`
+	URL string `json:"url"`
 	// Headers maps each header name to a template over the app's inputs. A header is sent only when every input its
 	// template names has a value.
 	// +kubebuilder:validation:MaxProperties=64
