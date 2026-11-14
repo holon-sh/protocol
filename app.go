@@ -78,10 +78,10 @@ type App struct {
 	// which it could replay against the session's other apps.
 	// +optional
 	Imported bool `json:"imported,omitempty"`
-	// Overlay is the digest of a development app's server source, a blob in the app's upload repository.
-	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
+	// Overlay marks a development app that runs from the source holon dev sends it, rather than from an image or a
+	// remote.
 	// +optional
-	Overlay string `json:"overlay,omitempty" pattern:"^sha256:[0-9a-f]{64}$"`
+	Overlay bool `json:"overlay,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!(has(self.value) && has(self.default))",message="input cannot declare both value and default"
