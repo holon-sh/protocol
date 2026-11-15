@@ -56,6 +56,7 @@ type faults struct {
 	wrongClientID, wrongAudience                         bool
 	pairwiseSubject, subjectNotUserID                    bool
 	mintUnregistered, activeAfterDelete                  bool
+	ensureRenewsKept                                     bool
 	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
 	noPendingSetup, duplicateUserName, deleteKeeps       bool
@@ -112,6 +113,7 @@ type provider struct {
 	skew        time.Duration
 	next        int
 	generations map[string]int
+	owners      map[string]identity.PermissionSet
 	scopes      map[string][]string
 	tokens      map[string]record
 	refreshes   map[string]record
@@ -129,6 +131,7 @@ func newProvider(t *testing.T, f faults) *provider {
 	p := &provider{
 		faults:      f,
 		generations: map[string]int{testResource: 1},
+		owners:      map[string]identity.PermissionSet{},
 		scopes:      map[string][]string{testResource: testScopes},
 		tokens:      map[string]record{},
 		refreshes:   map[string]record{},
@@ -440,19 +443,21 @@ func (p *provider) introspect(w http.ResponseWriter, r *http.Request) {
 func (p *provider) Ensure(_ context.Context, spec identity.Spec) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, ok := p.generations[spec.Audience]; !ok {
-		p.next++
-		p.generations[spec.Audience] = p.next
+	owner := identity.PermissionSet{Kind: spec.Kind, UID: spec.UID}
+	for audience, holder := range p.owners {
+		if holder == owner && !slices.Contains(spec.Audiences, audience) {
+			delete(p.owners, audience)
+			delete(p.generations, audience)
+			delete(p.scopes, audience)
+		}
 	}
-	p.scopes[spec.Audience] = spec.Scopes
-	return nil
-}
-
-func (p *provider) Delete(_ context.Context, spec identity.Spec) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	delete(p.generations, spec.Audience)
-	delete(p.scopes, spec.Audience)
+	for _, audience := range spec.Audiences {
+		if _, ok := p.generations[audience]; !ok || p.faults.ensureRenewsKept {
+			p.next++
+			p.generations[audience] = p.next
+		}
+		p.owners[audience], p.scopes[audience] = owner, spec.Scopes
+	}
 	return nil
 }
 

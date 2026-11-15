@@ -15,8 +15,9 @@
 //     scope is what the resource registered and the subject holds through a permission set when the token is issued,
 //     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1], and introspection
 //     answers it as issued. Protocol scopes (openid, profile, email, offline_access) pass through unchanged.
-//   - Registration. A token minted before its resource was registered, or after it was deleted and registered
-//     again, is inactive.
+//   - Registration. An owner registers its resources together and holds exactly the audiences it registered
+//     last. A token minted before its resource was registered, or for an audience its owner has since left out,
+//     is inactive, and stays inactive when the audience is registered again.
 //   - People. For each person, the SCIM User id the adapter serves, [RFC 7643 §3.1], is the sub of that person's
 //     sign-in at the browser client, [OpenID Connect Core 1.0 §8], and GET /Users/{id} lists the permission groups
 //     the person is in.

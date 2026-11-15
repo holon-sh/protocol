@@ -88,31 +88,46 @@ func (s *suite) checkUnregisteredAudience(ctx context.Context) error {
 		return err
 	}
 	spec := throwawaySpec()
+	kept, dropped := spec.Audiences[0], uniqueAudience()
+	spec.Audiences = []string{kept, dropped}
 	if err := s.registrations.Ensure(ctx, spec); err != nil {
-		return fmt.Errorf("register %s: %w", spec.Audience, err)
+		return fmt.Errorf("register %s: %w", spec.Audiences, err)
 	}
-	defer func() { _ = s.registrations.Delete(ctx, spec) }()
-	issued, err := s.clientCredentials(ctx, spec.Audience)
-	if err != nil {
+	defer s.release(ctx, spec)
+	issued := map[string]string{}
+	for _, audience := range spec.Audiences {
+		minted, err := s.clientCredentials(ctx, audience)
+		if err != nil {
+			return err
+		}
+		issued[audience] = minted.AccessToken
+	}
+	if _, err := s.wantActive(ctx, issued[dropped], s.cfg.ServiceAccountClientID, dropped); err != nil {
 		return err
 	}
-	if _, err := s.wantActive(ctx, issued.AccessToken, s.cfg.ServiceAccountClientID, spec.Audience); err != nil {
-		return err
-	}
-	if err := s.registrations.Delete(ctx, spec); err != nil {
-		return fmt.Errorf("delete %s: %w", spec.Audience, err)
-	}
-	if err := s.wantInactive(ctx, issued.AccessToken, "minted before its resource was deleted"); err != nil {
-		return err
-	}
+	spec.Audiences = []string{kept}
 	if err := s.registrations.Ensure(ctx, spec); err != nil {
-		return fmt.Errorf("register %s again: %w", spec.Audience, err)
+		return fmt.Errorf("register %s alone: %w", kept, err)
 	}
-	return s.wantInactive(ctx, issued.AccessToken, "minted before its resource was registered again")
+	if err := s.wantInactive(ctx, issued[dropped], "minted for an audience its owner left out"); err != nil {
+		return err
+	}
+	if _, err := s.wantActive(ctx, issued[kept], s.cfg.ServiceAccountClientID, kept); err != nil {
+		return fmt.Errorf("a token for an audience its owner kept: %w", err)
+	}
+	spec.Audiences = []string{kept, dropped}
+	if err := s.registrations.Ensure(ctx, spec); err != nil {
+		return fmt.Errorf("register %s again: %w", dropped, err)
+	}
+	return s.wantInactive(ctx, issued[dropped], "minted before its resource was registered again")
+}
+
+func (s *suite) release(ctx context.Context, spec identity.Spec) {
+	_ = s.registrations.Ensure(ctx, identity.Spec{Kind: spec.Kind, UID: spec.UID})
 }
 
 func throwawaySpec() identity.Spec {
-	return identity.Spec{Kind: "ConformanceResource", UID: strings.ToLower(rand.Text()), Audience: uniqueAudience(), Scopes: []string{"conformance:read"}}
+	return identity.Spec{Kind: "ConformanceResource", UID: strings.ToLower(rand.Text()), Audiences: []string{uniqueAudience()}, Scopes: []string{"conformance:read"}}
 }
 
 func wantRefused(action string, err error, code string) error {
@@ -190,11 +205,11 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 	}
 	other := throwawaySpec()
 	if err := s.registrations.Ensure(ctx, other); err != nil {
-		return fmt.Errorf("register %s: %w", other.Audience, err)
+		return fmt.Errorf("register %s: %w", other.Audiences, err)
 	}
-	defer func() { _ = s.registrations.Delete(ctx, other) }()
+	defer s.release(ctx, other)
 	_, err := s.exchange(ctx, client, url.Values{
-		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {other.Audience},
+		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": other.Audiences,
 	})
 	return wantRefused("refresh for another resource", err, "invalid_target")
 }
