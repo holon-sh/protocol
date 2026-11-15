@@ -28,16 +28,8 @@ func NewClient(endpoint, bearer string, transport *http.Client) (*Client, error)
 }
 
 func (c *Client) Ensure(ctx context.Context, spec Spec) error {
-	return c.call(ctx, "ensure", spec)
-}
-
-func (c *Client) Delete(ctx context.Context, spec Spec) error {
-	return c.call(ctx, "delete", spec)
-}
-
-func (c *Client) call(ctx context.Context, operation string, spec Spec) error {
 	body, _ := json.Marshal(registration{Spec: spec})
-	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/resources/"+operation, "application/json", "application/json", body)
+	response, err := c.adapter.Do(ctx, http.MethodPost, "/v1/resources/ensure", "application/json", "application/json", body)
 	if err != nil {
 		return ErrUnavailable
 	}
@@ -54,7 +46,6 @@ func (c *Client) call(ctx context.Context, operation string, spec Spec) error {
 func NewHandler(backend Backend, bearer string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/resources/ensure", serve(backend.Ensure))
-	mux.HandleFunc("POST /v1/resources/delete", serve(backend.Delete))
 	return adapter.Guard(bearer, "registration", registrationTimeout, func(w http.ResponseWriter) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	}, mux)
