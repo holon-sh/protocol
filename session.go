@@ -6,14 +6,27 @@ import (
 )
 
 const (
-	ConditionReady         = "Ready"
-	ConditionAvailable     = "Available"
-	ReasonInvalidIdentity  = "InvalidIdentity"
-	ReasonInvalidExpiry    = "InvalidExpiry"
-	ReasonInvalidSpec      = "InvalidSpec"
-	ReasonDeleting         = "Deleting"
-	ReasonLeaseExpired     = "LeaseExpired"
-	ReasonProgressDeadline = "ProgressDeadlineExceeded"
+	ConditionReady            = "Ready"
+	ConditionAvailable        = "Available"
+	ConditionEgressRestricted = "EgressRestricted"
+	ReasonInvalidIdentity     = "InvalidIdentity"
+	ReasonInvalidExpiry       = "InvalidExpiry"
+	ReasonInvalidSpec         = "InvalidSpec"
+	ReasonDeleting            = "Deleting"
+	ReasonLeaseExpired        = "LeaseExpired"
+	ReasonProgressDeadline    = "ProgressDeadlineExceeded"
+)
+
+const (
+	ConditionTrue  = "True"
+	ConditionFalse = "False"
+)
+
+const (
+	PhasePending   = "Pending"
+	PhaseRunning   = "Running"
+	PhaseSucceeded = "Succeeded"
+	PhaseFailed    = "Failed"
 )
 
 type Owner struct {
