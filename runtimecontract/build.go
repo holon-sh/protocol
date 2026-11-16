@@ -7,20 +7,29 @@ const (
 )
 
 type Build struct {
-	Layer bool     `json:"layer,omitempty"`
-	Run   []string `json:"run,omitempty"`
+	Freeze *Freeze  `json:"freeze,omitempty"`
+	Run    []string `json:"run,omitempty"`
+}
+
+type Freeze struct {
+	Dependencies []string `json:"dependencies,omitempty"`
+	Omit         []string `json:"omit,omitempty"`
 }
 
 type BuildReply struct {
-	Error  string `json:"error,omitempty"`
-	Output string `json:"output,omitempty"`
-	Stdout string `json:"stdout,omitempty"`
-	Layer  *Layer `json:"layer,omitempty"`
+	Error  string  `json:"error,omitempty"`
+	Output string  `json:"output,omitempty"`
+	Stdout string  `json:"stdout,omitempty"`
+	Frozen *Frozen `json:"frozen,omitempty"`
+}
+
+type Frozen struct {
+	Architecture string  `json:"architecture"`
+	Layers       []Layer `json:"layers"`
 }
 
 type Layer struct {
-	Digest       string `json:"digest"`
-	DiffID       string `json:"diffId"`
-	Size         int64  `json:"size"`
-	Architecture string `json:"architecture"`
+	Digest string `json:"digest"`
+	DiffID string `json:"diffId"`
+	Size   int64  `json:"size"`
 }
