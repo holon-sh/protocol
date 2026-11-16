@@ -19,17 +19,25 @@ type Freeze struct {
 type BuildReply struct {
 	Error  string  `json:"error,omitempty"`
 	Output string  `json:"output,omitempty"`
-	Stdout string  `json:"stdout,omitempty"`
 	Frozen *Frozen `json:"frozen,omitempty"`
+	Ran    *Ran    `json:"ran,omitempty"`
 }
 
 type Frozen struct {
 	Architecture string  `json:"architecture"`
+	Directory    string  `json:"directory"`
 	Layers       []Layer `json:"layers"`
 }
 
 type Layer struct {
-	Digest string `json:"digest"`
-	DiffID string `json:"diffId"`
-	Size   int64  `json:"size"`
+	MediaType string `json:"mediaType"`
+	Digest    string `json:"digest"`
+	DiffID    string `json:"diffId"`
+	Size      int64  `json:"size"`
+}
+
+type Ran struct {
+	ExitCode int    `json:"exitCode"`
+	Stdout   string `json:"stdout,omitempty"`
+	Stderr   string `json:"stderr,omitempty"`
 }
