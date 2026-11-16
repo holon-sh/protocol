@@ -79,6 +79,8 @@ type App struct {
 	// +optional
 	Imported bool `json:"imported,omitempty"`
 	// +optional
+	Inherited bool `json:"inherited,omitempty"`
+	// +optional
 	Source bool `json:"source,omitempty"`
 }
 
