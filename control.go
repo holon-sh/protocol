@@ -1,11 +1,16 @@
 package protocol
 
+import "encoding/json"
+
 const (
 	ToolCreateSession      = "create_session"
 	ToolGetSession         = "get_session"
+	ToolListSessions       = "list_sessions"
 	ToolUpdateSession      = "update_session"
 	ToolDeleteSession      = "delete_session"
 	ToolRenewSession       = "renew_session"
+	ToolGetLogs            = "get_logs"
+	ToolGetAppContract     = "get_app_contract"
 	ToolAuthorizeLifecycle = "authorize_lifecycle"
 	ToolRetryLifecycle     = "retry_lifecycle"
 	ToolUploadGrant        = "issue_upload_grant"
@@ -14,6 +19,7 @@ const (
 	ToolListValues         = "list_values"
 	ToolGetEgress          = "get_egress"
 	ToolSetEgress          = "set_egress"
+	ToolGetIdentity        = "get_identity"
 )
 
 // MCPCallEvent is the event.name of the completion record logged for each MCP call, sampled or not.
@@ -21,6 +27,13 @@ const MCPCallEvent = "holon.mcp.call"
 
 type SessionRequest struct {
 	Session string `json:"session"`
+}
+
+// GetSessionRequest reads a session; with a Revision the server first waits for the session to move past it.
+type GetSessionRequest struct {
+	SessionRequest
+
+	Revision string `json:"revision,omitempty"`
 }
 
 type WritePrecondition struct {
@@ -71,6 +84,66 @@ type SessionLogsRequest struct {
 	Since     string `json:"since,omitempty"`     // duration or RFC 3339; default 15m
 	TraceID   string `json:"traceId,omitempty"`   // records for one trace
 	Text      string `json:"text,omitempty"`      // substring filter
+}
+
+// SessionLogs is a bounded log snapshot: at most the request's limit of records, whose bodies total at most 64 KiB.
+type SessionLogs struct {
+	Environment string      `json:"environment,omitempty"`
+	Session     string      `json:"session"`
+	App         string      `json:"app"`
+	Records     []LogRecord `json:"records"`
+}
+
+// LogRecord is one collected log record.
+type LogRecord struct {
+	Time       string            `description:"RFC 3339 time with nanoseconds."                                                    json:"time"`
+	Severity   string            `description:"OTLP severity text."                                                                json:"severity,omitempty"`
+	App        string            `description:"The record's service.name: an app or a platform service."                           json:"app,omitempty"`
+	Body       string            `json:"body"`
+	TraceID    string            `json:"traceId,omitempty"`
+	Attributes map[string]string `description:"The record's other attributes, named as Loki labels, such as holon_lifecycle_hook." json:"attributes,omitempty"`
+}
+
+// Line renders the record as GET /sessions/{id}/logs streams it: "time severity app body trace_id=…".
+func (r LogRecord) Line() string {
+	line := r.Time + " " + r.Severity + " " + r.App + " " + r.Body
+	if r.TraceID != "" {
+		line += " trace_id=" + r.TraceID
+	}
+	return line + "\n"
+}
+
+// Caller is the get_identity reply. Identity is present and null when identity is disabled.
+type Caller struct {
+	Identity     *CallerIdentity    `json:"identity"`
+	Capabilities CallerCapabilities `json:"capabilities"`
+}
+
+type CallerCapabilities struct {
+	Telemetry bool `json:"telemetry"`
+}
+
+// CallerIdentity describes a verified caller and its granted scopes.
+type CallerIdentity struct {
+	Act     json.RawMessage `json:"act,omitempty"`
+	Issuer  string          `json:"issuer"`
+	Subject string          `json:"subject"`
+	Scopes  []string        `json:"scopes"`
+	Profile *CallerProfile  `json:"profile,omitempty"`
+}
+
+// CallerProfile is the small set of verified token claims displayed by the console.
+type CallerProfile struct {
+	Name             string `json:"name,omitempty"`
+	Email            string `json:"email,omitempty"`
+	EmailVerified    bool   `json:"emailVerified,omitempty"`
+	IdentityProvider string `json:"identityProvider,omitempty"`
+}
+
+// ReloadAppResult is how long the API waited for the app to restart from new source, and the end of what it printed.
+type ReloadAppResult struct {
+	ElapsedSeconds float64 `json:"elapsedSeconds"`
+	Output         string  `description:"The end of what installing and building the app printed." json:"output,omitempty"`
 }
 
 // ErrorResponse is the control-plane error envelope.
@@ -133,6 +206,10 @@ type EgressResponse struct {
 type DeleteSessionResult struct {
 	Deleted bool             `json:"deleted"`
 	Session *SessionResponse `json:"session,omitempty"`
+}
+
+type Sessions struct {
+	Items []SessionResponse `json:"items"`
 }
 
 type AppsRequest struct {
