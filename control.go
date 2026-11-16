@@ -269,6 +269,7 @@ type UploadRequest struct {
 type UploadGrant struct {
 	Grant        string            `json:"grant"`
 	Registry     string            `json:"registry"`
+	Base         string            `json:"base"`
 	Repositories map[string]string `json:"repositories"`
 	ExpiresAt    string            `json:"expiresAt"`
 }
