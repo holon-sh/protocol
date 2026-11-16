@@ -4,6 +4,7 @@ const (
 	BuildPath        = "/.holon/build"
 	BuildFile        = ".holon/build.json"
 	BuildTokenHeader = "X-Holon-Build-Token"
+	BaseImageEnv     = "HOLON_BASE_IMAGE"
 )
 
 type Build struct {
