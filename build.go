@@ -30,8 +30,7 @@ type BuildRecord struct {
 
 func (r BuildRecord) Validate() error {
 	remote := r.Runtime.Remote
-	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || len(r.Runtime.Env) > 64 ||
-		remote == nil && !ValidPort(int(r.Runtime.Port)) || remote != nil && r.Runtime.Port != 0 {
+	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || len(r.Runtime.Env) > 64 || remote == nil && !ValidPort(int(r.Runtime.Port)) {
 		return errors.New("unsupported or invalid app build metadata")
 	}
 	for name, input := range r.Runtime.Env {
@@ -48,8 +47,8 @@ func (r BuildRecord) Validate() error {
 	if remote == nil {
 		return nil
 	}
-	if remote.OpenAPI == "" || r.Runtime.Args != nil || r.Runtime.EnvTemplates != nil {
-		return errors.New("a remote app build serves an OpenAPI model and has no args or environment templates")
+	if remote.OpenAPI == "" || r.Runtime.Port != 0 || r.Runtime.Args != nil || r.Runtime.EnvTemplates != nil {
+		return errors.New("a remote app build serves an OpenAPI model and has no port, args or environment templates")
 	}
 	return remote.Validate(r.Runtime.Env)
 }
