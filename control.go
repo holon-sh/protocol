@@ -272,3 +272,5 @@ type UploadGrant struct {
 	Repositories map[string]string `json:"repositories"`
 	ExpiresAt    string            `json:"expiresAt"`
 }
+
+const BaseRepository = "development"
