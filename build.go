@@ -13,6 +13,8 @@ type BuildRuntime struct {
 	EnvTemplates map[string]Template `json:"envTemplates,omitempty"`
 	Requires     []string            `json:"requires,omitempty"`
 	Egress       Egress              `json:"egress,omitzero"`
+
+	OpenAPISourceDigest string `json:"openAPISourceDigest,omitempty" pattern:"^sha256:[0-9a-f]{64}$"`
 }
 
 type BuildRecord struct {
@@ -29,6 +31,9 @@ type BuildRecord struct {
 func (r BuildRecord) Validate() error {
 	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || !ValidPort(int(r.Runtime.Port)) || len(r.Runtime.Env) > 64 {
 		return errors.New("unsupported or invalid app build metadata")
+	}
+	if r.Runtime.OpenAPISourceDigest != "" && !ValidDigest(r.Runtime.OpenAPISourceDigest) {
+		return errors.New("invalid OpenAPI source digest")
 	}
 	for name, input := range r.Runtime.Env {
 		if !ValidEnvName(name) {

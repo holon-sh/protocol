@@ -45,6 +45,10 @@ type App struct {
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	Port int32 `json:"port,omitempty"`
+	// OpenAPISourceDigest is the SHA-256 fingerprint of the OpenAPI document URL used to build this app.
+	// +kubebuilder:validation:Pattern="^sha256:[0-9a-f]{64}$"
+	// +optional
+	OpenAPISourceDigest string `json:"openAPISourceDigest,omitempty" pattern:"^sha256:[0-9a-f]{64}$"`
 	// Args replace the image's command arguments. Each entry is one argument, a template over the app's inputs: the
 	// container receives an entry only when every input it names has a value.
 	// +kubebuilder:validation:MaxItems=64
