@@ -47,8 +47,8 @@ func (r BuildRecord) Validate() error {
 	if remote == nil {
 		return nil
 	}
-	if remote.OpenAPI == "" || r.Runtime.Port != 0 || r.Runtime.Args != nil || r.Runtime.EnvTemplates != nil {
-		return errors.New("a remote app build serves an OpenAPI model and has no port, args or environment templates")
+	if r.Runtime.Port != 0 || r.Runtime.Args != nil || r.Runtime.EnvTemplates != nil {
+		return errors.New("a remote app build has no port, args or environment templates")
 	}
 	return remote.Validate(r.Runtime.Env)
 }

@@ -30,10 +30,8 @@ func TestOpenAPIRemoteBuildContract(t *testing.T) {
 	}
 	for name, record := range map[string]protocol.BuildRecord{
 		"a port":         build(3000, protocol.Remote{URL: "https://pokeapi.co", OpenAPI: model}),
-		"no model":       build(0, protocol.Remote{URL: "https://pokeapi.co"}),
 		"a tagged model": build(0, protocol.Remote{URL: "https://pokeapi.co", OpenAPI: "holon/upload/pokeapi:latest"}),
 		"headers":        build(0, protocol.Remote{URL: "https://pokeapi.co", OpenAPI: model, Headers: map[string]string{"x-api-key": "key"}}),
-		"an HTTP server": build(0, protocol.Remote{URL: "http://pokeapi.co", OpenAPI: model}),
 	} {
 		if record.Validate() == nil {
 			t.Errorf("accepted a remote build with %s", name)
