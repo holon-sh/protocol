@@ -63,6 +63,9 @@ func (r Remote) Validate(env map[string]Input) error {
 	if _, err := r.Endpoint(declared); err != nil {
 		return err
 	}
+	if repository, digest, _ := strings.Cut(r.OpenAPI, "@"); r.OpenAPI != "" && (!ValidRepository(repository) || !ValidDigest(digest) || len(r.Headers) != 0) {
+		return errors.New("an OpenAPI remote names its model as <repository>@sha256:<digest> and sends no headers")
+	}
 	seen := map[string]bool{}
 	for name, template := range r.Headers {
 		canonical := http.CanonicalHeaderKey(name)

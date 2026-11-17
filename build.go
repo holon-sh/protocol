@@ -13,6 +13,8 @@ type BuildRuntime struct {
 	EnvTemplates map[string]Template `json:"envTemplates,omitempty"`
 	Requires     []string            `json:"requires,omitempty"`
 	Egress       Egress              `json:"egress,omitzero"`
+	// Remote is set by an OpenAPI import; such a build has no image.
+	Remote *Remote `json:"remote,omitempty"`
 }
 
 type BuildRecord struct {
@@ -27,7 +29,8 @@ type BuildRecord struct {
 }
 
 func (r BuildRecord) Validate() error {
-	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || !ValidPort(int(r.Runtime.Port)) || len(r.Runtime.Env) > 64 {
+	remote := r.Runtime.Remote
+	if r.SchemaVersion != 1 || !ValidAppName(r.AppName) || len(r.Runtime.Env) > 64 || remote == nil && !ValidPort(int(r.Runtime.Port)) {
 		return errors.New("unsupported or invalid app build metadata")
 	}
 	for name, input := range r.Runtime.Env {
@@ -41,5 +44,11 @@ func (r BuildRecord) Validate() error {
 	if !ValidArgs(r.Runtime.Env, r.Runtime.Args) || !ValidEnvTemplates(r.Runtime.Env, r.Runtime.EnvTemplates) {
 		return errors.New("app build args and environment templates must name declared inputs")
 	}
-	return nil
+	if remote == nil {
+		return nil
+	}
+	if r.Runtime.Port != 0 || r.Runtime.Args != nil || r.Runtime.EnvTemplates != nil {
+		return errors.New("a remote app build has no port, args or environment templates")
+	}
+	return remote.Validate(r.Runtime.Env)
 }
