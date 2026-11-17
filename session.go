@@ -30,7 +30,11 @@ const (
 )
 
 type Owner struct {
-	Issuer  string `json:"issuer"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	Issuer string `json:"issuer"`
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=512
 	Subject string `json:"sub"`
 }
 
