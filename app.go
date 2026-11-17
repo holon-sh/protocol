@@ -147,6 +147,7 @@ type OAuthClient struct {
 }
 
 // +mapType=atomic
+// +kubebuilder:validation:XValidation:rule="!has(self.openapi) || !has(self.headers)",message="an OpenAPI remote sends the credentials its document declares, not headers"
 type Remote struct {
 	// URL is a template over the app's inputs.
 	// +kubebuilder:validation:MaxLength=2048
@@ -157,6 +158,12 @@ type Remote struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Headers map[string]Template `json:"headers,omitempty"`
+	// OpenAPI names the compiled model of the HTTP API at URL as <repository>@sha256:<digest>. Holon serves its
+	// operations as MCP tools. Without it, URL is an MCP endpoint.
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern="@sha256:[0-9a-f]{64}$"
+	// +optional
+	OpenAPI string `json:"openapi,omitempty"`
 }
 
 type EgressDestination struct {
