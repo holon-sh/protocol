@@ -7,10 +7,12 @@
 //     [RFC 8628 §3], with offline_access. One person has one sub at both, the public subject type of
 //     [OpenID Connect Core 1.0 §8]. A service account uses client credentials, [RFC 6749 §4.4]; the conformance suite
 //     is given one. The issuer refuses the password grant to every client, [RFC 9700 §2.4].
-//   - Resource. Every authorization, device and token request carries exactly one resource parameter,
-//     [RFC 8707 §2]. The access token's aud is that resource and nothing else, [RFC 8707 §2.2]. A token requested
-//     for no resource or an unregistered one is inactive or refused with invalid_target, and a refresh naming a
-//     different resource is refused with invalid_target, [RFC 8707 §2].
+//   - Resource. An access token's aud is the one resource its token request names, [RFC 8707 §2], and nothing else,
+//     [RFC 8707 §2.2]. A grant whose authorization request named a resource is bound to it: a refresh naming a
+//     different resource is refused with invalid_target. The cli client's device request names none, and each
+//     refresh of its grant may name any registered resource, including one registered after the sign-in, which
+//     [RFC 8707 §2.2] leaves to the issuer. A token requested for no resource or an unregistered one is inactive or
+//     refused with invalid_target, [RFC 8707 §2].
 //   - Scope. A request names no resource scope. The resource decides, the default [RFC 6749 §3.3] allows: the issued
 //     scope is what the resource registered and the subject holds through a permission set when the token is issued,
 //     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1], and introspection

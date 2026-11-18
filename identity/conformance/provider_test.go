@@ -71,7 +71,7 @@ type faults struct {
 	noCompleteVerificationURI, slowDownOnce              bool
 	refreshInvalidGrant, revocationIgnored               bool
 	refreshRefused                                       bool
-	cliRefreshLosesAudience, cliRefreshAnyResource       bool
+	cliRefreshBound                                      bool
 	signOutKeepsAccess, signOutKeepsRefresh              bool
 	signedOutUnregistered                                protocol.Plane
 	samePasswordAccepted, nameNotCollected, stillPending bool
@@ -81,7 +81,6 @@ type faults struct {
 type record struct {
 	client, subject, audience, scope, session string
 	generation                                int
-	rotated                                   bool
 }
 
 type codeRecord struct {
@@ -203,16 +202,18 @@ func refuse(w http.ResponseWriter, code string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})
 }
 
-func (p *provider) issue(w http.ResponseWriter, r record, refresh bool) {
+// issue answers an access token for r and, when grant is set, a refresh token for grant, whose audience is the resource
+// it is bound to or empty when it names none.
+func (p *provider) issue(w http.ResponseWriter, r record, grant *record) {
 	value := p.id("token-")
 	p.tokens[value] = r
 	response := token{AccessToken: value, TokenType: "bearer", Scope: r.scope}
 	if slices.Contains(strings.Fields(r.scope), "openid") {
 		response.IDToken = r.session
 	}
-	if refresh {
+	if grant != nil {
 		response.RefreshToken = p.id("refresh-")
-		p.refreshes[response.RefreshToken] = r
+		p.refreshes[response.RefreshToken] = *grant
 	}
 	_ = json.NewEncoder(w).Encode(response)
 }
@@ -264,7 +265,7 @@ func (p *provider) clientCredentials(w http.ResponseWriter, client, resource str
 		refuse(w, "invalid_target")
 		return
 	}
-	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, ""), generation: generation}, false)
+	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, ""), generation: generation}, nil)
 }
 
 func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, form url.Values) {
@@ -278,7 +279,7 @@ func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, fo
 		refuse(w, "invalid_grant")
 		return
 	}
-	p.issue(w, code.record, true)
+	p.issue(w, code.record, &code.record)
 }
 
 func (p *provider) refresh(w http.ResponseWriter, client, resource, value string) {
@@ -287,7 +288,14 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		refuse(w, "invalid_grant")
 		return
 	}
-	if resource != previous.audience && !(client == cliClient && p.faults.cliRefreshAnyResource) {
+	next, grant := previous, previous
+	if _, registered := p.generations[resource]; registered && previous.audience == "" {
+		next.audience, next.scope, next.generation = resource, p.limit(resource, previous.scope), p.generations[resource]
+		if p.faults.cliRefreshBound {
+			grant = next
+		}
+	}
+	if resource != next.audience {
 		code := "invalid_target"
 		if p.faults.refreshInvalidGrant {
 			code = "invalid_grant"
@@ -295,12 +303,8 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 		refuse(w, code)
 		return
 	}
-	if client == cliClient && previous.rotated && p.faults.cliRefreshLosesAudience {
-		previous.audience = ""
-	}
-	previous.rotated = true
 	delete(p.refreshes, value)
-	p.issue(w, previous, true)
+	p.issue(w, next, &grant)
 }
 
 func (p *provider) revoke(w http.ResponseWriter, r *http.Request) {
@@ -345,10 +349,6 @@ func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audience := r.PostForm.Get("resource")
-	if len(r.PostForm["resource"]) != 1 || audience == "" {
-		refuse(w, "invalid_target")
-		return
-	}
 	code, userCode := p.id("device-"), p.id("user-code-")
 	p.devices[code] = &deviceRecord{
 		record: record{
@@ -388,7 +388,11 @@ func (p *provider) pollDevice(w http.ResponseWriter, resource, code string) {
 		refuse(w, "authorization_pending")
 	default:
 		delete(p.devices, code)
-		p.issue(w, device.record, !p.faults.deviceNoRefresh && slices.Contains(strings.Fields(device.scope), "offline_access"))
+		var grant *record
+		if !p.faults.deviceNoRefresh && slices.Contains(strings.Fields(device.scope), "offline_access") {
+			grant = &device.record
+		}
+		p.issue(w, device.record, grant)
 	}
 }
 
