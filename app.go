@@ -19,6 +19,7 @@ type InputName = string
 type ConfigRevision = string
 
 // +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.source)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and source, and a port only with an image"
+// +kubebuilder:validation:XValidation:rule="!has(self.oauth) || !has(self.remote) || !has(self.remote.registration)",message="an app signs in with its own OAuth client or a registration, not both"
 type App struct {
 	// +optional
 	Icons []Icon `json:"icons,omitempty"`
@@ -164,6 +165,14 @@ type Remote struct {
 	// +kubebuilder:validation:Pattern="@sha256:[0-9a-f]{64}$"
 	// +optional
 	OpenAPI string `json:"openapi,omitempty"`
+	// Registration names the broker's [RFC 7591] client registration that signs people in at URL's authorization
+	// server. Without it, Holon registers a client there or uses the broker's default one.
+	//
+	// [RFC 7591]: https://www.rfc-editor.org/rfc/rfc7591.html
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	// +optional
+	Registration string `json:"registration,omitempty"`
 }
 
 type EgressDestination struct {
