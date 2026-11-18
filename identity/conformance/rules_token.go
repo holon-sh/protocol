@@ -159,8 +159,8 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 	return err
 }
 
-// checkRefreshResource holds the refreshes of the browser client's online grant and the cli client's offline grant
-// to the same rules.
+// checkRefreshResource holds the browser client's grant, which named the resource, to that resource, and lets the cli
+// client's grant, which named none, refresh for any registered resource.
 func (s *suite) checkRefreshResource(ctx context.Context) error {
 	browser, err := s.browserToken(ctx)
 	if err != nil {
@@ -173,7 +173,7 @@ func (s *suite) checkRefreshResource(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.wantRefreshesKeepResource(ctx, oauthClient{id: s.cfg.CLIClientID}, cli.RefreshToken); err != nil {
+	if err := s.wantRefreshesAnyResource(ctx, oauthClient{id: s.cfg.CLIClientID}, cli.RefreshToken); err != nil {
 		return fmt.Errorf("cli client: %w", err)
 	}
 	return nil
@@ -212,6 +212,31 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": other.Audiences,
 	})
 	return wantRefused("refresh for another resource", err, "invalid_target")
+}
+
+// wantRefreshesAnyResource refreshes for the resource and then for one registered after the sign-in, and holds each
+// access token to the audience of [RFC 8707 §2.2].
+//
+// [RFC 8707 §2.2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2.2
+func (s *suite) wantRefreshesAnyResource(ctx context.Context, client oauthClient, latest string) error {
+	later := throwawaySpec()
+	if err := s.registrations.Ensure(ctx, later); err != nil {
+		return fmt.Errorf("register %s: %w", later.Audiences, err)
+	}
+	defer s.release(ctx, later)
+	for _, resource := range []string{s.cfg.Resource.Audience, later.Audiences[0]} {
+		refreshed, err := s.exchange(ctx, client, url.Values{
+			"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {resource},
+		})
+		if err != nil {
+			return fmt.Errorf("refresh for %s: %w", resource, err)
+		}
+		if _, err := s.wantActive(ctx, refreshed.AccessToken, client.id, resource); err != nil {
+			return fmt.Errorf("access token for %s: %w", resource, err)
+		}
+		latest = cmp.Or(refreshed.RefreshToken, latest)
+	}
+	return nil
 }
 
 func (s *suite) checkSignOut(ctx context.Context) error {

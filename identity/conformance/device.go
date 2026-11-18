@@ -43,28 +43,25 @@ func (d deviceAuthorization) validate() error {
 	return nil
 }
 
-// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client, with the resource
-// parameter of [RFC 8707 §2] on both the device request and the token poll, and with offline_access, which must
-// yield a refresh token.
+// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client, naming no resource,
+// with offline_access, which must yield a refresh token.
 //
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
-// [RFC 8707 §2]: https://www.rfc-editor.org/rfc/rfc8707.html#section-2
 func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	client := oauthClient{id: s.cfg.CLIClientID}
-	resource := s.cfg.Resource.Audience
 	document, err := s.discover(ctx)
 	if err != nil {
 		return token{}, err
 	}
 	var device deviceAuthorization
-	request := url.Values{"scope": {"openid offline_access"}, "resource": {resource}}
+	request := url.Values{"scope": {"openid offline_access"}}
 	if err := s.post(ctx, document.DeviceAuthorizationEndpoint, client, request, &device); err != nil {
 		return token{}, fmt.Errorf("device authorization request: %w", err)
 	}
 	if err := device.validate(); err != nil {
 		return token{}, err
 	}
-	poll := url.Values{"grant_type": {deviceGrantType}, "device_code": {device.DeviceCode}, "resource": {resource}}
+	poll := url.Values{"grant_type": {deviceGrantType}, "device_code": {device.DeviceCode}}
 	_, err = s.exchange(ctx, client, poll)
 	if err := wantRefused("a poll before sign-in", err, "authorization_pending"); err != nil {
 		return token{}, err
@@ -83,10 +80,10 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	return issued, nil
 }
 
-// checkCLIClient takes a device grant and expects the person to hold the sub they hold at the browser client, the
-// public subject type of [OpenID Connect Core 1.0 §8]. It then refreshes, so that a refusal below can only come
-// from revocation, revokes the latest refresh token as [RFC 7009 §2.1] describes and expects the invalid_grant of
-// [RFC 6749 §5.2] from using it.
+// checkCLIClient takes a device grant and refreshes it for the resource, which also shows that a refusal below can
+// only come from revocation. It expects the person to hold the sub they hold at the browser client, the public
+// subject type of [OpenID Connect Core 1.0 §8], then revokes the latest refresh token as [RFC 7009 §2.1] describes
+// and expects the invalid_grant of [RFC 6749 §5.2] from using it.
 //
 // [OpenID Connect Core 1.0 §8]: https://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
@@ -102,7 +99,12 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	cli, err := s.wantActive(ctx, issued.AccessToken, s.cfg.CLIClientID, resource)
+	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
+	refreshed, err := s.exchange(ctx, client, refresh)
+	if err != nil {
+		return fmt.Errorf("refresh before revocation: %w", err)
+	}
+	cli, err := s.wantActive(ctx, refreshed.AccessToken, s.cfg.CLIClientID, resource)
 	if err != nil {
 		return err
 	}
@@ -116,11 +118,6 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	}
 	if browser.Subject != cli.Subject {
 		return fmt.Errorf("one person has sub %q at the cli client and %q at the browser client", cli.Subject, browser.Subject)
-	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
-	refreshed, err := s.exchange(ctx, client, refresh)
-	if err != nil {
-		return fmt.Errorf("refresh before revocation: %w", err)
 	}
 	latest := cmp.Or(refreshed.RefreshToken, issued.RefreshToken)
 	revocation := url.Values{"token": {latest}, "token_type_hint": {"refresh_token"}}
