@@ -30,17 +30,18 @@ func (s *suite) checkClientCredentials(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := onlyRegistered(issued.Scope, resource.Scopes); err != nil {
+	if err := onlyAllowed(issued.Scope, resource.Scopes); err != nil {
 		return fmt.Errorf("token response: %w", err)
 	}
 	result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.ServiceAccountClientID, resource.Audience)
 	if err != nil {
 		return err
 	}
-	if err := onlyRegistered(result.Scope, resource.Scopes); err != nil {
+	if err := onlyAllowed(result.Scope, resource.Scopes); err != nil {
 		return fmt.Errorf("introspection: %w", err)
 	}
-	return nil
+	_, err = s.clientCredentials(ctx, resource.Audience, "conformance:unknown-"+strings.ToLower(rand.Text()))
+	return wantRefused("a scope no resource registered", err, "invalid_scope")
 }
 
 func (s *suite) checkIntrospection(ctx context.Context) error {
@@ -307,40 +308,53 @@ func (s *suite) endSession(ctx context.Context, hint, redirectURI string) (int, 
 	return response.StatusCode, response.Header.Get("Location"), nil
 }
 
+// checkIssuedScope signs in naming no scope, which at the browser client gets the default of [RFC 6749 §3.3], and then
+// naming one the resource registered and one only another resource registered, which gets the first alone. The scope
+// response parameter of [RFC 6749 §5.1] and introspection must each answer the issued scope.
+//
+// [RFC 6749 §3.3]: https://www.rfc-editor.org/rfc/rfc6749.html#section-3.3
+// [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
 func (s *suite) checkIssuedScope(ctx context.Context) error {
 	resource := s.cfg.Resource
-	issued, err := s.browserToken(ctx)
-	if err != nil {
-		return err
+	other := throwawaySpec()
+	if err := s.registrations.Ensure(ctx, other); err != nil {
+		return fmt.Errorf("register %s: %w", other.Audiences, err)
 	}
-	if err := wantIssuedScope(issued.Scope, resource.Scopes); err != nil {
-		return err
-	}
-	result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, resource.Audience)
-	if err != nil {
-		return err
-	}
-	answered, want := strings.Fields(result.Scope), strings.Fields(issued.Scope)
-	slices.Sort(answered)
-	slices.Sort(want)
-	if !slices.Equal(answered, want) {
-		return fmt.Errorf("scope %q at introspection, issued %q", result.Scope, issued.Scope)
+	defer s.release(ctx, other)
+	for _, named := range [][]string{nil, {resource.Scopes[0], other.Scopes[0]}} {
+		want := resource.Scopes
+		if named != nil {
+			want = named[:1]
+		}
+		issued, err := s.browserToken(ctx, named...)
+		if err != nil {
+			return err
+		}
+		if err := wantIssuedScope(issued.Scope, want); err != nil {
+			return fmt.Errorf("naming %q: %w", named, err)
+		}
+		result, err := s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, resource.Audience)
+		if err != nil {
+			return err
+		}
+		answered, issuedScopes := strings.Fields(result.Scope), strings.Fields(issued.Scope)
+		slices.Sort(answered)
+		slices.Sort(issuedScopes)
+		if !slices.Equal(answered, issuedScopes) {
+			return fmt.Errorf("scope %q at introspection, issued %q", result.Scope, issued.Scope)
+		}
 	}
 	return nil
 }
 
-// wantIssuedScope holds the scope response parameter to [RFC 6749 §5.1]: the request named no resource scope, so the
-// issued scope differs and the parameter is required.
-//
-// [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
-func wantIssuedScope(scope string, registered []string) error {
-	if err := onlyRegistered(scope, registered); err != nil {
+func wantIssuedScope(scope string, want []string) error {
+	if err := onlyAllowed(scope, want); err != nil {
 		return err
 	}
 	granted := strings.Fields(scope)
-	for _, want := range append([]string{"openid"}, registered...) {
-		if !slices.Contains(granted, want) {
-			return fmt.Errorf("scope %q is held but not issued in %q", want, scope)
+	for _, held := range append([]string{"openid"}, want...) {
+		if !slices.Contains(granted, held) {
+			return fmt.Errorf("scope %q is held but not issued in %q", held, scope)
 		}
 	}
 	return nil

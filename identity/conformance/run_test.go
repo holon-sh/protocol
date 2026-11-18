@@ -43,6 +43,7 @@ func TestEveryRuleIsDetected(t *testing.T) {
 	}{
 		{"issuer differs", (*suite).checkDiscovery, faults{wrongIssuer: true}, "issuer"},
 		{"unregistered scope granted", (*suite).checkClientCredentials, faults{leakScope: true}, leakedScope},
+		{"unknown scope accepted", (*suite).checkClientCredentials, faults{unknownScopeAccepted: true}, "invalid_scope"},
 		{"no bearer accepted", (*suite).checkIntrospection, faults{openIntrospection: true}, "no bearer"},
 		{"unknown token active", (*suite).checkIntrospection, faults{activeUnknownToken: true}, "unknown to the issuer"},
 		{"client_id differs", (*suite).checkIntrospection, faults{wrongClientID: true}, "client_id"},
@@ -75,6 +76,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
 		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, leakedScope},
 		{"held scope issued only when named", (*suite).checkIssuedScope, faults{scopeOnlyWhenNamed: true}, "held but not issued"},
+		{"held scope issued unnamed", (*suite).checkIssuedScope, faults{unnamedGranted: true}, testScopes[1]},
+		{"named scope the resource lacks issued", (*suite).checkIssuedScope, faults{unusedNamedGranted: true}, "conformance:read"},
 		{"introspection answers another scope", (*suite).checkIssuedScope, faults{scopeDroppedAtIntrospection: true}, "at introspection, issued"},
 		{"sign-out keeps the access token", (*suite).checkSignOut, faults{signOutKeepsAccess: true}, "of a signed-out session"},
 		{"sign-out keeps the refresh token", (*suite).checkSignOut, faults{signOutKeepsRefresh: true}, "refresh after sign-out"},
