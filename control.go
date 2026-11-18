@@ -213,14 +213,22 @@ type Sessions struct {
 }
 
 type AppsRequest struct {
-	RequestID  string `json:"requestId,omitempty"`
-	TTLSeconds *int64 `json:"ttlSeconds,omitempty"`
-	Apps       []App  `json:"apps"`
+	RequestID  string    `json:"requestId,omitempty"`
+	TTLSeconds *int64    `json:"ttlSeconds,omitempty"`
+	Apps       []App     `json:"apps"`
+	Revision   *Revision `json:"revision,omitempty"`
 }
 
 func (input *AppsRequest) UnmarshalJSON(data []byte) error {
 	type plain AppsRequest
 	return DecodeJSONFields(data, (*plain)(input), "apps")
+}
+
+// Revision is the Git commit a deploy's apps were built from.
+type Revision struct {
+	Commit string `json:"commit"`
+	// Dirty reports that the deployed files differed from Commit.
+	Dirty bool `json:"dirty,omitempty"`
 }
 
 // VariableRequest names a config value or secret by the apps it is set for, in development (for every session, or one)
