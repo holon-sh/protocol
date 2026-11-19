@@ -17,12 +17,11 @@
 //     that registers it. A token carries the scopes its grant named that its resource registered and the subject holds
 //     through a permission set when the token is issued, refreshes included. A grant that names none gets the default
 //     [RFC 6749 §3.3] allows, every scope the resource registered that the subject holds, but only at a client the
-//     issuer defines. A client that introduced itself, such as by [RFC 7591], has no default: the subject approves
-//     its scopes on a consent page, shown again for prompt=consent, it gets only what it named, and an authorization
-//     request that names no scope is refused with invalid_scope. A scope no resource registered is refused with
-//     invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the
-//     scope parameter, [RFC 6749 §5.1], and introspection answers it as issued. Protocol scopes (openid, profile,
-//     email, offline_access) pass through unchanged.
+//     issuer defines. Any other client is a third party: it gets only the scopes it named and the subject approved,
+//     and a sign-in that names none is refused with invalid_scope. A scope no resource registered is refused with
+//     invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the scope parameter,
+//     [RFC 6749 §5.1], and introspection answers it as issued. Protocol scopes (openid, profile, email,
+//     offline_access) pass through unchanged.
 //   - Registration. An owner registers its resources together and holds exactly the audiences it registered
 //     last. A token minted before its resource was registered, or for an audience its owner has since left out,
 //     is inactive, and stays inactive when the audience is registered again.
@@ -55,7 +54,6 @@
 // [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
-// [RFC 7591]: https://www.rfc-editor.org/rfc/rfc7591.html
 // [RFC 7636 §4.2]: https://www.rfc-editor.org/rfc/rfc7636.html#section-4.2
 // [RFC 7643 §3.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-3.1
 // [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1
