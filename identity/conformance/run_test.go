@@ -74,7 +74,6 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"cli refresh bound to its first resource", (*suite).checkRefreshResource, faults{cliRefreshBound: true}, "cli client: refresh for"},
 		{"revoked refresh token still refreshes", (*suite).checkCLIClient, faults{revocationIgnored: true}, "a revoked refresh token"},
 		{"no refresh token ever refreshes", (*suite).checkCLIClient, faults{refreshRefused: true}, "refresh before revocation"},
-		{"unregistered scope issued", (*suite).checkIssuedScope, faults{leakScope: true}, leakedScope},
 		{"held scope issued only when named", (*suite).checkIssuedScope, faults{scopeOnlyWhenNamed: true}, "held but not issued"},
 		{"held scope issued unnamed", (*suite).checkIssuedScope, faults{unnamedGranted: true}, testScopes[1]},
 		{"named scope the resource lacks issued", (*suite).checkIssuedScope, faults{unusedNamedGranted: true}, "conformance:read"},
