@@ -15,10 +15,11 @@
 //     refused with invalid_target, [RFC 8707 §2].
 //   - Scope. A scope says what the subject delegated to the client, and its name means the same at every resource
 //     that registers it. A token carries the scopes its grant named that its resource registered and the subject holds
-//     through a permission set when the token is issued, refreshes included. A grant that names none gets the default
-//     [RFC 6749 §3.3] allows, every scope the resource registered that the subject holds, but only at a client the
-//     issuer defines. Any other client is a third party: it gets only the scopes it named and the subject approved,
-//     and a sign-in that names none is refused with invalid_scope. A scope no resource registered is refused with
+//     through a permission set when the token is issued, refreshes included. Any client the issuer does not define is
+//     a third party and gets only the scopes it named and the subject approved. A grant that names none gets the
+//     default [RFC 6749 §3.3] allows: at a client the issuer defines, every scope the resource registered that the
+//     subject holds; at a third party, none. A Personal Agent has no default: a sign-in that names none is refused
+//     with invalid_scope, [Personal Agent Protocol §4.7]. A scope no resource registered is refused with
 //     invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the scope parameter,
 //     [RFC 6749 §5.1], and introspection answers it as issued. Protocol scopes (openid, profile, email,
 //     offline_access) pass through unchanged.
@@ -68,4 +69,5 @@
 // [OpenID Connect Discovery 1.0 §4]: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
+// [Personal Agent Protocol §4.7]: https://personalagentprotocol.org/docs/1.0/spec#scopes
 package profile
