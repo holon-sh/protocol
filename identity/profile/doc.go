@@ -17,8 +17,10 @@
 //     that registers it. A token carries the scopes its grant named that its resource registered and the subject holds
 //     through a permission set when the token is issued, refreshes included. A grant that names none gets the default
 //     [RFC 6749 §3.3] allows, every scope the resource registered that the subject holds, but only at a client the
-//     issuer defines: a client that registered itself, [RFC 7591], gets only what it named. A scope no resource
-//     registered is refused with invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the
+//     issuer defines. A client that introduced itself, such as by [RFC 7591], has no default: the subject approves
+//     its scopes on a consent page, shown again for prompt=consent, it gets only what it named, and an authorization
+//     request that names no scope is refused with invalid_scope. A scope no resource registered is refused with
+//     invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the
 //     scope parameter, [RFC 6749 §5.1], and introspection answers it as issued. Protocol scopes (openid, profile,
 //     email, offline_access) pass through unchanged.
 //   - Registration. An owner registers its resources together and holds exactly the audiences it registered
