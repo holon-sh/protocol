@@ -83,7 +83,7 @@ type rule struct {
 
 var rules = []rule{
 	{name: "discovery serves the required endpoints", check: (*suite).checkDiscovery},
-	{name: "client credentials token carries the resource and only registered scopes", check: (*suite).checkClientCredentials},
+	{name: "client credentials token carries the resource and only registered scopes, and an unknown scope is invalid_scope", check: (*suite).checkClientCredentials},
 	{name: "introspection answers RFC 7662 fields to the bearer", check: (*suite).checkIntrospection},
 	{name: "token for no resource or an unregistered audience is inactive", check: (*suite).checkUnregisteredAudience},
 	{name: "SCIM list", check: (*suite).checkSCIMList},
@@ -97,7 +97,7 @@ var rules = []rule{
 	{name: "browser client uses the authorization code grant with PKCE S256", browser: true, check: (*suite).checkBrowserClient},
 	{name: "cli client is public, uses the device authorization grant with offline_access and revokes its refresh token", browser: true, check: (*suite).checkCLIClient},
 	{name: "a browser refresh keeps its resource and one naming another is invalid_target, and a cli refresh names any registered resource", browser: true, check: (*suite).checkRefreshResource},
-	{name: "issued scope is what the subject holds on the resource, reported in the scope parameter and at introspection", browser: true, check: (*suite).checkIssuedScope},
+	{name: "issued scope is what the grant named, or by default all, of what the subject holds on the resource, reported in the scope parameter and at introspection", browser: true, check: (*suite).checkIssuedScope},
 	{name: "sign-out with id_token_hint ends the session and redirects to the signed-out page", browser: true, check: (*suite).checkSignOut},
 	{name: "SCIM id is the sub at the browser client, and GET /Users/{sub} lists the person's groups", browser: true, check: (*suite).checkSCIMIDIsSubject},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},

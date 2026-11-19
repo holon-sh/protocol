@@ -13,10 +13,14 @@
 //     refresh of its grant may name any registered resource, including one registered after the sign-in, which
 //     [RFC 8707 §2.2] leaves to the issuer. A token requested for no resource or an unregistered one is inactive or
 //     refused with invalid_target, [RFC 8707 §2].
-//   - Scope. A request names no resource scope. The resource decides, the default [RFC 6749 §3.3] allows: the issued
-//     scope is what the resource registered and the subject holds through a permission set when the token is issued,
-//     refreshes included. The token response carries it in the scope parameter, [RFC 6749 §5.1], and introspection
-//     answers it as issued. Protocol scopes (openid, profile, email, offline_access) pass through unchanged.
+//   - Scope. A scope says what the subject delegated to the client, and its name means the same at every resource
+//     that registers it. A token carries the scopes its grant named that its resource registered and the subject holds
+//     through a permission set when the token is issued, refreshes included. A grant that names none gets the default
+//     [RFC 6749 §3.3] allows, every scope the resource registered that the subject holds, but only at a client the
+//     issuer defines: a client that registered itself, [RFC 7591], gets only what it named. A scope no resource
+//     registered is refused with invalid_scope, [RFC 6749 §5.2]. The token response carries the issued scope in the
+//     scope parameter, [RFC 6749 §5.1], and introspection answers it as issued. Protocol scopes (openid, profile,
+//     email, offline_access) pass through unchanged.
 //   - Registration. An owner registers its resources together and holds exactly the audiences it registered
 //     last. A token minted before its resource was registered, or for an audience its owner has since left out,
 //     is inactive, and stays inactive when the audience is registered again.
@@ -49,6 +53,7 @@
 // [RFC 6749 §5.1]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.1
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
+// [RFC 7591]: https://www.rfc-editor.org/rfc/rfc7591.html
 // [RFC 7636 §4.2]: https://www.rfc-editor.org/rfc/rfc7636.html#section-4.2
 // [RFC 7643 §3.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-3.1
 // [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1

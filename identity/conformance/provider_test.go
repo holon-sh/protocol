@@ -51,6 +51,8 @@ var (
 type faults struct {
 	wrongIssuer                                          bool
 	leakScope, scopeOnlyWhenNamed                        bool
+	unnamedGranted, unusedNamedGranted                   bool
+	unknownScopeAccepted                                 bool
 	scopeDroppedAtIntrospection                          bool
 	openIntrospection, activeUnknownToken                bool
 	wrongClientID, wrongAudience                         bool
@@ -218,15 +220,32 @@ func (p *provider) issue(w http.ResponseWriter, r record, grant *record) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func (p *provider) limit(audience, requested string) string {
-	granted := slices.DeleteFunc(strings.Fields(requested), func(scope string) bool { return !slices.Contains(protocolScopes, scope) })
-	if !p.faults.scopeOnlyWhenNamed {
+func (p *provider) limit(audience, requested string) (string, bool) {
+	var granted, named []string
+	for scope := range strings.FieldsSeq(requested) {
+		if slices.Contains(protocolScopes, scope) {
+			granted = append(granted, scope)
+		} else {
+			named = append(named, scope)
+		}
+	}
+	all := slices.Concat(slices.Collect(maps.Values(p.scopes))...)
+	if slices.ContainsFunc(named, func(scope string) bool { return !slices.Contains(all, scope) }) && !p.faults.unknownScopeAccepted {
+		return "", false
+	}
+	if len(named) == 0 && !p.faults.scopeOnlyWhenNamed || p.faults.unnamedGranted {
 		granted = append(granted, p.scopes[audience]...)
+	}
+	for _, scope := range named {
+		if slices.Contains(p.scopes[audience], scope) || p.faults.unusedNamedGranted {
+			granted = append(granted, scope)
+		}
 	}
 	if p.faults.leakScope {
 		granted = append(granted, leakedScope)
 	}
-	return strings.Join(granted, " ")
+	slices.Sort(granted)
+	return strings.Join(slices.Compact(granted), " "), true
 }
 
 func (p *provider) token(w http.ResponseWriter, r *http.Request) {
@@ -247,7 +266,7 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.PostForm.Get("grant_type") {
 	case "client_credentials":
-		p.clientCredentials(w, client, resource)
+		p.clientCredentials(w, client, resource, r.PostForm.Get("scope"))
 	case "authorization_code":
 		p.redeemCode(w, client, resource, r.PostForm)
 	case "refresh_token":
@@ -259,13 +278,18 @@ func (p *provider) token(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *provider) clientCredentials(w http.ResponseWriter, client, resource string) {
+func (p *provider) clientCredentials(w http.ResponseWriter, client, resource, requested string) {
 	generation, registered := p.generations[resource]
 	if !registered && !p.faults.mintUnregistered {
 		refuse(w, "invalid_target")
 		return
 	}
-	p.issue(w, record{client: client, subject: "service", audience: resource, scope: p.limit(resource, ""), generation: generation}, nil)
+	scope, known := p.limit(resource, requested)
+	if !known {
+		refuse(w, "invalid_scope")
+		return
+	}
+	p.issue(w, record{client: client, subject: "service", audience: resource, scope: scope, generation: generation}, nil)
 }
 
 func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, form url.Values) {
@@ -290,7 +314,8 @@ func (p *provider) refresh(w http.ResponseWriter, client, resource, value string
 	}
 	next, grant := previous, previous
 	if _, registered := p.generations[resource]; registered && previous.audience == "" {
-		next.audience, next.scope, next.generation = resource, p.limit(resource, previous.scope), p.generations[resource]
+		next.audience, next.generation = resource, p.generations[resource]
+		next.scope, _ = p.limit(resource, previous.scope)
 		if p.faults.cliRefreshBound {
 			grant = next
 		}
@@ -349,10 +374,11 @@ func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	audience := r.PostForm.Get("resource")
+	scope, _ := p.limit(audience, r.PostForm.Get("scope"))
 	code, userCode := p.id("device-"), p.id("user-code-")
 	p.devices[code] = &deviceRecord{
 		record: record{
-			client: cliClient, subject: callerPerson, audience: audience, scope: p.limit(audience, r.PostForm.Get("scope")),
+			client: cliClient, subject: callerPerson, audience: audience, scope: scope,
 			generation: p.generations[audience],
 		},
 		userCode: userCode, interval: deviceInterval,
@@ -496,10 +522,11 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 		return nil, errors.New("PKCE S256 is required")
 	}
 	audience := query.Get("resource")
+	scope, _ := p.limit(audience, query.Get("scope"))
 	code := p.id("code-")
 	p.codes[code] = codeRecord{
 		record: record{
-			client: query.Get("client_id"), subject: subject, audience: audience, scope: p.limit(audience, query.Get("scope")),
+			client: query.Get("client_id"), subject: subject, audience: audience, scope: scope,
 			generation: p.generations[audience], session: p.id("session-"),
 		},
 		redirectURI: query.Get("redirect_uri"), challenge: query.Get("code_challenge"),
