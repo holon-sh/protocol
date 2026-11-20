@@ -58,6 +58,10 @@ type App struct {
 	Requires []string `json:"requires,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
+	// Webhooks maps each webhook's name to the tool that each POST to its WebhookPath calls with WebhookArguments.
+	// +kubebuilder:validation:MaxProperties=64
+	// +optional
+	Webhooks map[string]string `json:"webhooks,omitempty"`
 	// +kubebuilder:validation:MaxProperties=64
 	// +kubebuilder:validation:XValidation:rule="!('HOLON_PLATFORM' in self) && !('HOLON_HOOK_CONFIG' in self)",message="Holon platform configuration is reserved for the controller"
 	// +optional
@@ -186,6 +190,14 @@ type EgressDestination struct {
 
 // +listType=atomic
 type Egress []EgressDestination
+
+// WebhookArguments are the arguments of a webhook's tool call.
+type WebhookArguments struct {
+	// Headers maps each request header's lowercased name to its value, repeated values joined by ", ".
+	Headers map[string]string `json:"headers"`
+	// Body is the request body exactly as received.
+	Body string `json:"body"`
+}
 
 type Hook struct {
 	Event    string `json:"event"`

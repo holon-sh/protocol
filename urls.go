@@ -10,6 +10,11 @@ func AppPath(name string) string {
 	return MCPPathPrefix + name
 }
 
+// WebhookPath is the path on a session's host where an outside service posts an app's webhook.
+func WebhookPath(app, name string) string {
+	return "/webhooks/" + app + "/" + name
+}
+
 type Plane string
 
 const (
