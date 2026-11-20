@@ -212,6 +212,9 @@ type Sessions struct {
 	Items []SessionResponse `json:"items"`
 }
 
+// MaxTTLSeconds is the longest AppsRequest.TTLSeconds, a detached session's lifetime.
+const MaxTTLSeconds = 7 * 24 * 60 * 60
+
 type AppsRequest struct {
 	// Session, on create_session, names a session to create, or the caller's development session to update in place.
 	// It must be a ValidSessionName; without it the installation generates a name.
