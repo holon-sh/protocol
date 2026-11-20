@@ -28,7 +28,7 @@ func PlaneOrigin(origin string, plane Plane, sessionID string) (string, error) {
 	}
 	label, ok := planeLabels[plane]
 	if plane == SessionPlane {
-		if !ValidDNSLabel(sessionID) || sessionID == "dev" || sessionID == "admin" {
+		if !ValidSessionName(sessionID) {
 			return "", errors.New("session id is invalid")
 		}
 		label, ok = sessionID+".", true
@@ -51,7 +51,7 @@ func ParseHost(origin, host string) (Plane, string, bool) {
 		}
 	}
 	sessionID, found := strings.CutSuffix(host, "."+baseHost)
-	if !found || !ValidDNSLabel(sessionID) {
+	if !found || !ValidSessionName(sessionID) {
 		return "", "", false
 	}
 	return SessionPlane, sessionID, true
