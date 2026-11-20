@@ -26,6 +26,7 @@ const PlatformPaths = `/connections
 /identity
 /mcpb
 /v0.1
+/webhooks
 `
 
 func ReservedAppNames() []string {
