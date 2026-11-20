@@ -40,6 +40,12 @@ func ValidAppName(value string) bool {
 	return len(value) <= 49 && ValidDNSLabel(value) && !slices.Contains(ReservedAppNames(), value)
 }
 
+// ValidSessionName reports whether a development session may be named value: a DNS label that is neither a reserved
+// host label nor the production session's name.
+func ValidSessionName(value string) bool {
+	return ValidDNSLabel(value) && !slices.Contains([]string{"dev", "admin", ProductionName}, value)
+}
+
 func ValidAppNames(names []string) bool {
 	seen := make(map[string]bool, len(names))
 	for _, name := range names {
