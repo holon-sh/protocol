@@ -2,6 +2,7 @@ package protocol
 
 const (
 	ToolImportRegistryPackage = "import_registry_package"
+	ToolImportRepository      = "import_repository"
 	ToolGetImport             = "get_import"
 )
 
@@ -19,6 +20,15 @@ type PackageSelection struct {
 type ImportRegistryPackageRequest struct {
 	App      string         `json:"app"`
 	Registry RegistrySource `json:"registry"`
+}
+
+type ImportRepositoryRequest struct {
+	SessionRequest
+
+	TTLSeconds int64  `json:"ttlSeconds"`
+	Repository string `json:"repository"`
+	Commit     string `json:"commit"`
+	Token      string `json:"token,omitempty"`
 }
 
 type GetImportRequest struct {
