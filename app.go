@@ -58,10 +58,12 @@ type App struct {
 	Requires []string `json:"requires,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
-	// Webhooks maps each webhook's name to the tool that each POST to its WebhookPath calls with WebhookArguments.
-	// +kubebuilder:validation:MaxProperties=64
+	// Webhooks name the tools that a POST to each WebhookPath calls with WebhookArguments.
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MaxItems=64
 	// +optional
-	Webhooks map[string]string `json:"webhooks,omitempty"`
+	Webhooks []Webhook `json:"webhooks,omitempty"`
 	// +kubebuilder:validation:MaxProperties=64
 	// +kubebuilder:validation:XValidation:rule="!('HOLON_PLATFORM' in self) && !('HOLON_HOOK_CONFIG' in self)",message="Holon platform configuration is reserved for the controller"
 	// +optional
@@ -190,6 +192,16 @@ type EgressDestination struct {
 
 // +listType=atomic
 type Egress []EgressDestination
+
+// Webhook maps a WebhookPath segment, a DNS label of at most 49 characters, to the tool a POST there calls.
+type Webhook struct {
+	// +kubebuilder:validation:MaxLength=49
+	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	Name string `json:"name" maxLength:"49" pattern:"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" required:"true"`
+	// +kubebuilder:validation:MaxLength=1024
+	// +kubebuilder:validation:Pattern="^[^\\x00\\r\\n]+$"
+	Tool string `json:"tool" maxLength:"1024" pattern:"^[^\\x00\\r\\n]+$" required:"true"`
+}
 
 // WebhookArguments are the arguments of a webhook's tool call.
 type WebhookArguments struct {
