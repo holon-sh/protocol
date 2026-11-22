@@ -213,7 +213,6 @@ type Sessions struct {
 }
 
 type AppsRequest struct {
-	// Session names the session create_session creates, or the caller's development session it updates in place.
 	Session    string    `json:"session,omitempty"`
 	RequestID  string    `json:"requestId,omitempty"`
 	TTLSeconds *int64    `json:"ttlSeconds,omitempty"`
