@@ -58,7 +58,7 @@ type App struct {
 	Requires []string `json:"requires,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
-	// Webhooks name the tools that a POST to each WebhookPath calls with WebhookArguments.
+	// Webhooks name the tools that a POST to /webhooks/<app>/<name> on a session's host calls.
 	// +listType=map
 	// +listMapKey=name
 	// +kubebuilder:validation:MaxItems=64
@@ -193,7 +193,6 @@ type EgressDestination struct {
 // +listType=atomic
 type Egress []EgressDestination
 
-// Webhook maps a WebhookPath segment, a DNS label of at most 49 characters, to the tool a POST there calls.
 type Webhook struct {
 	// +kubebuilder:validation:MaxLength=49
 	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
@@ -201,14 +200,6 @@ type Webhook struct {
 	// +kubebuilder:validation:MaxLength=1024
 	// +kubebuilder:validation:Pattern="^[^\\x00\\r\\n]+$"
 	Tool string `json:"tool" maxLength:"1024" pattern:"^[^\\x00\\r\\n]+$" required:"true"`
-}
-
-// WebhookArguments are the arguments of a webhook's tool call.
-type WebhookArguments struct {
-	// Headers maps each request header's lowercased name to its value, repeated values joined by ", ".
-	Headers map[string]string `json:"headers"`
-	// Body is the request body exactly as received.
-	Body string `json:"body"`
 }
 
 type Hook struct {
