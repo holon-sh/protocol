@@ -213,8 +213,7 @@ type Sessions struct {
 }
 
 type AppsRequest struct {
-	// Session, on create_session, names a session to create, or the caller's development session to update in place.
-	// It must be a ValidSessionName; without it the installation generates a name.
+	// Session names the session create_session creates, or the caller's development session it updates in place.
 	Session    string    `json:"session,omitempty"`
 	RequestID  string    `json:"requestId,omitempty"`
 	TTLSeconds *int64    `json:"ttlSeconds,omitempty"`
