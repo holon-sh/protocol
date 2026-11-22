@@ -26,12 +26,8 @@ func BrowserPath(raw string) (string, bool) {
 	return webPath, valid && !slices.Contains(platformPaths, "/"+first)
 }
 
-func AppBrowserMount(app App, mode string) string {
-	mount := "/" + app.Name
-	if mode == ModeProduction {
-		return cmp.Or(app.Mount, mount)
-	}
-	return mount
+func AppBrowserMount(app App) string {
+	return cmp.Or(app.Mount, "/"+app.Name)
 }
 
 func ValidateAppMounts(apps []App) error {
@@ -43,7 +39,7 @@ func ValidateAppMounts(apps []App) error {
 			}
 			continue
 		}
-		mount := AppBrowserMount(app, ModeProduction)
+		mount := AppBrowserMount(app)
 		parsed, valid := BrowserPath(mount)
 		if !valid || parsed != mount || mount != "/" && strings.HasSuffix(mount, "/") {
 			return fmt.Errorf("app %s mount requires a canonical, non-platform browser path", app.Name)
