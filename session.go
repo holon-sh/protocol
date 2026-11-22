@@ -65,6 +65,11 @@ type InstalledRelease struct {
 	ServingVersion string `json:"servingVersion,omitempty"`
 }
 
+type DeniedEgress struct {
+	App    string `json:"app"`
+	Egress Egress `json:"egress"`
+}
+
 type SessionEndpoint struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -83,6 +88,7 @@ type SessionResponse struct {
 	Operation          *LifecycleOperation `json:"operation,omitempty"`
 	Lifecycle          *LifecycleStatus    `json:"lifecycle,omitempty"`
 	Releases           []InstalledRelease  `json:"releases,omitempty"`
+	DeniedEgress       []DeniedEgress      `json:"deniedEgress,omitempty"`
 	Detached           bool                `json:"detached,omitempty"`
 	BuildArchitectures []string            `json:"buildArchitectures,omitempty"`
 	UID                string              `json:"uid"`
