@@ -20,7 +20,7 @@ func HostScopes(host Host) (read, write string) {
 
 func ControlScopes(host Host) []string {
 	switch host {
-	case AdminHost:
+	case AdminHost, ConsoleHost:
 		return SystemScopes()
 	case DevHost:
 		return []string{ScopeDevRead, ScopeDevWrite}
