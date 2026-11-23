@@ -42,7 +42,7 @@ func ValidAppName(value string) bool {
 }
 
 func ValidSessionName(value string) bool {
-	return ValidDNSLabel(value) && value != ProductionName && !slices.Contains(slices.Collect(maps.Values(planeLabels)), value+".")
+	return ValidDNSLabel(value) && value != ProductionName && !slices.Contains(slices.Collect(maps.Values(hostLabels)), value+".")
 }
 
 func ValidAppNames(names []string) bool {
