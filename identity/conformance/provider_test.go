@@ -41,10 +41,10 @@ const (
 var (
 	testScopes     = []string{"app:read", "app:write"}
 	clientSecrets  = map[string]string{browserClient: browserSecret, serviceClient: serviceSecret, cliClient: ""}
-	signedOutPages = map[string]protocol.Plane{
-		"https://holon.example.test/?signedOut=1":       protocol.BasePlane,
-		"https://admin.holon.example.test/?signedOut=1": protocol.AdminPlane,
-		"https://dev.holon.example.test/?signedOut=1":   protocol.DevPlane,
+	signedOutPages = map[string]protocol.Host{
+		"https://holon.example.test/?signedOut=1":       protocol.BaseHost,
+		"https://admin.holon.example.test/?signedOut=1": protocol.AdminHost,
+		"https://dev.holon.example.test/?signedOut=1":   protocol.DevHost,
 	}
 )
 
@@ -75,7 +75,7 @@ type faults struct {
 	refreshRefused                                       bool
 	cliRefreshBound                                      bool
 	signOutKeepsAccess, signOutKeepsRefresh              bool
-	signedOutUnregistered                                protocol.Plane
+	signedOutUnregistered                                protocol.Host
 	samePasswordAccepted, nameNotCollected, stillPending bool
 	linkReusable, linkNeverExpires                       bool
 }
@@ -350,8 +350,8 @@ func (p *provider) logout(w http.ResponseWriter, r *http.Request) {
 	defer p.mu.Unlock()
 	query := r.URL.Query()
 	target := query.Get("post_logout_redirect_uri")
-	plane, registered := signedOutPages[target]
-	if !registered || plane == p.faults.signedOutUnregistered || query.Get("client_id") != browserClient {
+	host, registered := signedOutPages[target]
+	if !registered || host == p.faults.signedOutUnregistered || query.Get("client_id") != browserClient {
 		refuse(w, "invalid_request")
 		return
 	}

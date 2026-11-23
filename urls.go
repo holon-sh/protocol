@@ -10,56 +10,57 @@ func AppPath(name string) string {
 	return MCPPathPrefix + name
 }
 
-type Plane string
+type Host string
 
 const (
-	BasePlane    Plane = "base"
-	DevPlane     Plane = "dev"
-	AdminPlane   Plane = "admin"
-	SessionPlane Plane = "session"
+	BaseHost    Host = "base"
+	DevHost     Host = "dev"
+	AdminHost   Host = "admin"
+	AccountHost Host = "account"
+	SessionHost Host = "session"
 )
 
-var planeLabels = map[Plane]string{BasePlane: "", DevPlane: "dev.", AdminPlane: "admin."}
+var hostLabels = map[Host]string{BaseHost: "", DevHost: "dev.", AdminHost: "admin.", AccountHost: "account."}
 
-func PlaneOrigin(origin string, plane Plane, sessionID string) (string, error) {
+func HostOrigin(origin string, host Host, sessionID string) (string, error) {
 	canonical, err := CanonicalOrigin(origin)
 	if err != nil {
 		return "", err
 	}
-	label, ok := planeLabels[plane]
-	if plane == SessionPlane {
+	label, ok := hostLabels[host]
+	if host == SessionHost {
 		if !ValidSessionName(sessionID) {
 			return "", errors.New("session id is invalid")
 		}
 		label, ok = sessionID+".", true
 	}
 	if !ok {
-		return "", errors.New("plane is invalid")
+		return "", errors.New("host is invalid")
 	}
 	return HTTPSPrefix + label + strings.TrimPrefix(canonical, HTTPSPrefix), nil
 }
 
-func ParseHost(origin, host string) (Plane, string, bool) {
+func ParseHost(origin, host string) (Host, string, bool) {
 	canonical, err := CanonicalOrigin(origin)
 	if err != nil {
 		return "", "", false
 	}
 	baseHost := strings.TrimPrefix(canonical, HTTPSPrefix)
-	for plane, label := range planeLabels {
+	for kind, label := range hostLabels {
 		if host == label+baseHost {
-			return plane, "", true
+			return kind, "", true
 		}
 	}
 	sessionID, found := strings.CutSuffix(host, "."+baseHost)
 	if !found || !ValidSessionName(sessionID) {
 		return "", "", false
 	}
-	return SessionPlane, sessionID, true
+	return SessionHost, sessionID, true
 }
 
-func ParseControlAudience(origin, resource string) (Plane, bool) {
-	plane, _, ok := ParseHost(origin, strings.TrimPrefix(resource, HTTPSPrefix))
-	return plane, ok && strings.HasPrefix(resource, HTTPSPrefix) && (plane == DevPlane || plane == AdminPlane)
+func ParseControlAudience(origin, resource string) (Host, bool) {
+	host, _, ok := ParseHost(origin, strings.TrimPrefix(resource, HTTPSPrefix))
+	return host, ok && strings.HasPrefix(resource, HTTPSPrefix) && host != BaseHost && host != SessionHost
 }
 
 func RegistryHost(origin string) string {
@@ -81,20 +82,20 @@ func ParseAppResource(resource string) (string, string, bool) {
 	return u.Scheme + "://" + u.Host, name, ok
 }
 
-var sessionPlanes = map[string]Plane{ModeProduction: BasePlane, ModeDevelopment: SessionPlane}
+var sessionHosts = map[string]Host{ModeProduction: BaseHost, ModeDevelopment: SessionHost}
 
 func SessionAudience(origin, mode, sessionID string) (string, error) {
-	plane, ok := sessionPlanes[mode]
+	host, ok := sessionHosts[mode]
 	if !ok {
 		return "", errors.New("session mode is invalid")
 	}
-	return PlaneOrigin(origin, plane, sessionID)
+	return HostOrigin(origin, host, sessionID)
 }
 
 func ParseSessionAudience(origin, audience string) (string, string, bool) {
-	plane, sessionID, _ := ParseHost(origin, strings.TrimPrefix(audience, HTTPSPrefix))
+	host, sessionID, _ := ParseHost(origin, strings.TrimPrefix(audience, HTTPSPrefix))
 	mode := ModeDevelopment
-	if plane == BasePlane {
+	if host == BaseHost {
 		mode = ModeProduction
 	}
 	expected, err := SessionAudience(origin, mode, sessionID)

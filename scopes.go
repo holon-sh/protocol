@@ -11,16 +11,19 @@ func SystemScopes() []string {
 	return []string{ScopeDevRead, ScopeDevWrite, ScopeProdRead, ScopeProdWrite}
 }
 
-func PlaneScopes(plane Plane) (read, write string) {
-	if plane == AdminPlane {
+func HostScopes(host Host) (read, write string) {
+	if host == AdminHost {
 		return ScopeProdRead, ScopeProdWrite
 	}
 	return ScopeDevRead, ScopeDevWrite
 }
 
-func ControlScopes(plane Plane) []string {
-	if plane == AdminPlane {
+func ControlScopes(host Host) []string {
+	switch host {
+	case AdminHost:
 		return SystemScopes()
+	case DevHost:
+		return []string{ScopeDevRead, ScopeDevWrite}
 	}
-	return []string{ScopeDevRead, ScopeDevWrite}
+	return nil
 }

@@ -24,7 +24,7 @@ const requestTimeout = 30 * time.Second
 // credentials grant of [RFC 6749 §4.4]. HTTP must trust the issuer and the adapter. Resource must already be
 // registered, with at least one binding so that a permission-set group exists. BrowserRedirectURI must be on the
 // base origin, and the browser client must have {origin}/?signedOut=1 registered as a post-logout redirect URI for
-// that origin and for the admin and dev origins protocol.PlaneOrigin derives from it.
+// that origin and for the admin and dev origins protocol.HostOrigin derives from it.
 //
 // [RFC 6749 §4.4]: https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4
 type Config struct {

@@ -245,13 +245,13 @@ func (s *suite) checkSignOut(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, plane := range []protocol.Plane{protocol.BasePlane, protocol.AdminPlane, protocol.DevPlane} {
-		origin, err := protocol.PlaneOrigin(callback.Scheme+"://"+callback.Host, plane, "")
+	for _, host := range []protocol.Host{protocol.BaseHost, protocol.AdminHost, protocol.DevHost} {
+		origin, err := protocol.HostOrigin(callback.Scheme+"://"+callback.Host, host, "")
 		if err != nil {
 			return err
 		}
 		if err := s.wantSignOut(ctx, origin+"/?signedOut=1"); err != nil {
-			return fmt.Errorf("%s origin: %w", plane, err)
+			return fmt.Errorf("%s origin: %w", host, err)
 		}
 	}
 	return nil

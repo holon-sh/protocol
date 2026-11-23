@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"maps"
 	"slices"
 	"strings"
 )
@@ -41,7 +42,7 @@ func ValidAppName(value string) bool {
 }
 
 func ValidSessionName(value string) bool {
-	return ValidDNSLabel(value) && !slices.Contains([]string{"dev", "admin", ProductionName}, value)
+	return ValidDNSLabel(value) && value != ProductionName && !slices.Contains(slices.Collect(maps.Values(hostLabels)), value+".")
 }
 
 func ValidAppNames(names []string) bool {
