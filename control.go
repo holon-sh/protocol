@@ -212,6 +212,8 @@ type Sessions struct {
 	Items []SessionResponse `json:"items"`
 }
 
+const MaxTTLSeconds = 7 * 24 * 60 * 60
+
 type AppsRequest struct {
 	Session    string    `json:"session,omitempty"`
 	RequestID  string    `json:"requestId,omitempty"`
