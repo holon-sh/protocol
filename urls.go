@@ -16,11 +16,11 @@ const (
 	BaseHost    Host = "base"
 	DevHost     Host = "dev"
 	AdminHost   Host = "admin"
-	AccountHost Host = "account"
+	ConsoleHost Host = "console"
 	SessionHost Host = "session"
 )
 
-var hostLabels = map[Host]string{BaseHost: "", DevHost: "dev.", AdminHost: "admin.", AccountHost: "account."}
+var hostLabels = map[Host]string{BaseHost: "", DevHost: "dev.", AdminHost: "admin.", ConsoleHost: "console."}
 
 func HostOrigin(origin string, host Host, sessionID string) (string, error) {
 	canonical, err := CanonicalOrigin(origin)
