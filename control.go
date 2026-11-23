@@ -213,6 +213,7 @@ type Sessions struct {
 }
 
 type AppsRequest struct {
+	Session    string    `json:"session,omitempty"`
 	RequestID  string    `json:"requestId,omitempty"`
 	TTLSeconds *int64    `json:"ttlSeconds,omitempty"`
 	Apps       []App     `json:"apps"`

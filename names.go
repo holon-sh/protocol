@@ -40,6 +40,10 @@ func ValidAppName(value string) bool {
 	return len(value) <= 49 && ValidDNSLabel(value) && !slices.Contains(ReservedAppNames(), value)
 }
 
+func ValidSessionName(value string) bool {
+	return ValidDNSLabel(value) && !slices.Contains([]string{"dev", "admin", ProductionName}, value)
+}
+
 func ValidAppNames(names []string) bool {
 	seen := make(map[string]bool, len(names))
 	for _, name := range names {
