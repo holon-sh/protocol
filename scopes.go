@@ -19,8 +19,11 @@ func PlaneScopes(plane Plane) (read, write string) {
 }
 
 func ControlScopes(plane Plane) []string {
-	if plane == AdminPlane {
+	switch plane {
+	case AdminPlane:
 		return SystemScopes()
+	case DevPlane:
+		return []string{ScopeDevRead, ScopeDevWrite}
 	}
-	return []string{ScopeDevRead, ScopeDevWrite}
+	return nil
 }

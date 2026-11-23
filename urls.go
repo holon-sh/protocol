@@ -16,10 +16,11 @@ const (
 	BasePlane    Plane = "base"
 	DevPlane     Plane = "dev"
 	AdminPlane   Plane = "admin"
+	AccountPlane Plane = "account"
 	SessionPlane Plane = "session"
 )
 
-var planeLabels = map[Plane]string{BasePlane: "", DevPlane: "dev.", AdminPlane: "admin."}
+var planeLabels = map[Plane]string{BasePlane: "", DevPlane: "dev.", AdminPlane: "admin.", AccountPlane: "account."}
 
 func PlaneOrigin(origin string, plane Plane, sessionID string) (string, error) {
 	canonical, err := CanonicalOrigin(origin)
@@ -59,7 +60,7 @@ func ParseHost(origin, host string) (Plane, string, bool) {
 
 func ParseControlAudience(origin, resource string) (Plane, bool) {
 	plane, _, ok := ParseHost(origin, strings.TrimPrefix(resource, HTTPSPrefix))
-	return plane, ok && strings.HasPrefix(resource, HTTPSPrefix) && (plane == DevPlane || plane == AdminPlane)
+	return plane, ok && strings.HasPrefix(resource, HTTPSPrefix) && plane != BasePlane && plane != SessionPlane
 }
 
 func RegistryHost(origin string) string {
