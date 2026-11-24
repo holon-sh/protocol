@@ -15,6 +15,16 @@ const (
 	CallerHeader  = "X-Holon-Caller"
 )
 
+// An app sets these on a call it makes for a person. SubjectHeader names the person, the party on whose behalf the
+// request is made ([RFC 8693 §2.1]). ActorHeader names the acting party ([RFC 8693 §2.1]), the app the sender acts for,
+// and is set only when that app is not the sender.
+//
+// [RFC 8693 §2.1]: https://www.rfc-editor.org/rfc/rfc8693.html#section-2.1
+const (
+	SubjectHeader = "X-Holon-Subject"
+	ActorHeader   = "X-Holon-Actor"
+)
+
 func DecodeContextClaims(token string, claims any) error {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
