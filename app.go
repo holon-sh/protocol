@@ -56,6 +56,16 @@ type App struct {
 	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
 	// +optional
 	Requires []string `json:"requires,omitempty"`
+	// MayAct are the apps among Requires that this app lets act for it: a call one of them sends naming this app as its
+	// actor counts as this app's own, for a person who let this app act for them. It is the may_act claim of
+	// [RFC 8693 §4.4] for apps.
+	//
+	// [RFC 8693 §4.4]: https://www.rfc-editor.org/rfc/rfc8693.html#section-4.4
+	// +listType=set
+	// +kubebuilder:validation:items:MaxLength=49
+	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	// +optional
+	MayAct []string `json:"mayAct,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
 	// +kubebuilder:validation:MaxProperties=64

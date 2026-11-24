@@ -1,5 +1,7 @@
 package protocol
 
+import "slices"
+
 func Dependencies(apps []App) []string {
 	var problems []string
 	byName := make(map[string]App, len(apps))
@@ -13,6 +15,11 @@ func Dependencies(apps []App) []string {
 			}
 			if _, ok := byName[target]; !ok {
 				problems = append(problems, "dependency "+app.Name+"."+target+" has no runtime")
+			}
+		}
+		for _, actor := range app.MayAct {
+			if !slices.Contains(app.Requires, actor) {
+				problems = append(problems, app.Name+" lets "+actor+" act for it without requiring it")
 			}
 		}
 	}

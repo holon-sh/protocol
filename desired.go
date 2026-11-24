@@ -13,8 +13,7 @@ func WritableApps(apps []App) []App {
 		app := &result[i]
 		app.Release = nil
 		app.Applied, app.Supplied = nil, nil
-		app.Requires = slices.Clone(app.Requires)
-		slices.Sort(app.Requires)
+		app.Requires, app.MayAct = slices.Sorted(slices.Values(app.Requires)), slices.Sorted(slices.Values(app.MayAct))
 	}
 	slices.SortFunc(result, func(a, b App) int { return strings.Compare(a.Name, b.Name) })
 	return result
