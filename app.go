@@ -75,10 +75,6 @@ type App struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Supplied map[string]Input `json:"supplied,omitempty"`
-	// Imported marks an app installed from an MCP Registry package. Holon hands such third-party code no caller context,
-	// which it could replay against the session's other apps.
-	// +optional
-	Imported bool `json:"imported,omitempty"`
 	// +optional
 	Inherited bool `json:"inherited,omitempty"`
 	// +optional
