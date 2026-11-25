@@ -682,7 +682,10 @@ func (p *provider) PatchUser(_ context.Context, id string, patch scim.Patch) (sc
 		case "active":
 			var active bool
 			_ = json.Unmarshal(operation.Value, &active)
-			p.setActive(user, active)
+			user.Active = active && !p.faults.reactivationIgnored
+			if !active && !p.faults.disableOnly {
+				p.end(user.ID)
+			}
 		case "name":
 			_ = json.Unmarshal(operation.Value, &user.Name)
 		case "password":
@@ -693,19 +696,6 @@ func (p *provider) PatchUser(_ context.Context, id string, patch scim.Patch) (sc
 		}
 	}
 	return p.view(user), nil
-}
-
-func (p *provider) setActive(user *scim.User, active bool) {
-	switch {
-	case active && p.faults.reactivationIgnored:
-	case active:
-		user.Active = true
-	case p.faults.disableOnly:
-		user.Active = false
-	default:
-		user.Active = false
-		p.end(user.ID)
-	}
 }
 
 func (p *provider) DeleteUser(_ context.Context, id string) error {

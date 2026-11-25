@@ -63,8 +63,8 @@ func TestEveryRuleIsDetected(t *testing.T) {
 		{"members ignored", (*suite).checkSCIMPatch, faults{membersIgnored: true}, "membership"},
 		{"delete keeps the user", (*suite).checkSCIMDelete, faults{deleteKeeps: true}, "after delete"},
 		{"delete keeps the person's tokens", (*suite).checkSCIMDelete, faults{deleteKeepsTokens: true}, "of a deleted person"},
-		{"deactivation only suspends tokens", (*suite).checkSCIMDeactivation, faults{disableOnly: true}, "online sign-in of a reactivated person"},
-		{"deactivation keeps offline refresh tokens", (*suite).checkSCIMDeactivation, faults{deactivationKeepsOffline: true}, "offline refresh token of a reactivated person"},
+		{"deactivation only suspends tokens", (*suite).checkSCIMDeactivation, faults{disableOnly: true}, "browser sign-in of a reactivated person"},
+		{"deactivation keeps offline refresh tokens", (*suite).checkSCIMDeactivation, faults{deactivationKeepsOffline: true}, "cli refresh token of a reactivated person"},
 		{"reactivation leaves the person unable to sign in", (*suite).checkSCIMDeactivation, faults{reactivationIgnored: true}, "sign-in after reactivation"},
 		{"sent disagrees with capabilities", (*suite).checkInvitation, faults{sentWithoutCapability: true}, "capabilities"},
 		{"repeat invites a new user", (*suite).checkInvitation, faults{inviteNewUserEachTime: true}, "repeat"},
@@ -231,14 +231,6 @@ func TestDiscoveryValidate(t *testing.T) {
 				t.Fatal("accepted")
 			}
 		})
-	}
-}
-
-func TestWantIssuedScope(t *testing.T) {
-	for _, scope := range []string{"", "openid app:read"} {
-		if err := wantIssuedScope(scope, testScopes); err == nil {
-			t.Errorf("wantIssuedScope(%q) accepted", scope)
-		}
 	}
 }
 

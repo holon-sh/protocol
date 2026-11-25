@@ -100,8 +100,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
-	refreshed, err := s.exchange(ctx, client, refresh)
+	refreshed, err := s.refresh(ctx, client, issued.RefreshToken, resource)
 	if err != nil {
 		return fmt.Errorf("refresh before revocation: %w", err)
 	}
@@ -109,7 +108,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	signedIn, err := s.browserToken(ctx)
+	signedIn, err := s.browserToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -125,8 +124,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err := s.post(ctx, document.RevocationEndpoint, client, revocation, nil); err != nil {
 		return fmt.Errorf("revocation request: %w", err)
 	}
-	refresh.Set("refresh_token", latest)
-	_, err = s.exchange(ctx, client, refresh)
+	_, err = s.refresh(ctx, client, latest, resource)
 	return wantRefused("a revoked refresh token", err, "invalid_grant")
 }
 

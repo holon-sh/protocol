@@ -245,12 +245,19 @@ func (s *suite) redeem(ctx context.Context, issued grant) (token, error) {
 	})
 }
 
-func (s *suite) browserToken(ctx context.Context, named ...string) (token, error) {
-	issued, err := s.authorize(ctx, SignInRequest{}, named...)
+func (s *suite) browserToken(ctx context.Context, person SignInRequest, named ...string) (token, error) {
+	issued, err := s.authorize(ctx, person, named...)
 	if err != nil {
 		return token{}, err
 	}
 	return s.redeem(ctx, issued)
+}
+
+// refresh is the request of [RFC 6749 §6] for resource.
+//
+// [RFC 6749 §6]: https://www.rfc-editor.org/rfc/rfc6749.html#section-6
+func (s *suite) refresh(ctx context.Context, client oauthClient, refreshToken, resource string) (token, error) {
+	return s.exchange(ctx, client, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refreshToken}, "resource": {resource}})
 }
 
 func (s *suite) wantActive(ctx context.Context, value, clientID, audience string) (introspection.Result, error) {

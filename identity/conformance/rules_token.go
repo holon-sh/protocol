@@ -152,7 +152,7 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 	if err := wantRefused("a wrong code_verifier", err, "invalid_grant"); err != nil {
 		return err
 	}
-	issued, err := s.browserToken(ctx)
+	issued, err := s.browserToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (s *suite) checkBrowserClient(ctx context.Context) error {
 // checkRefreshResource holds the browser client's grant, which named the resource, to that resource, and lets the cli
 // client's grant, which named none, refresh for any registered resource.
 func (s *suite) checkRefreshResource(ctx context.Context) error {
-	browser, err := s.browserToken(ctx)
+	browser, err := s.browserToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -193,9 +193,7 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 	}
 	resource := s.cfg.Resource.Audience
 	for attempt := range 2 {
-		refreshed, err := s.exchange(ctx, client, url.Values{
-			"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {resource},
-		})
+		refreshed, err := s.refresh(ctx, client, latest, resource)
 		if err != nil {
 			return fmt.Errorf("refresh %d for the same resource: %w", attempt+1, err)
 		}
@@ -209,9 +207,7 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 		return fmt.Errorf("register %s: %w", other.Audiences, err)
 	}
 	defer s.release(ctx, other)
-	_, err := s.exchange(ctx, client, url.Values{
-		"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": other.Audiences,
-	})
+	_, err := s.refresh(ctx, client, latest, other.Audiences[0])
 	return wantRefused("refresh for another resource", err, "invalid_target")
 }
 
@@ -226,9 +222,7 @@ func (s *suite) wantRefreshesAnyResource(ctx context.Context, client oauthClient
 	}
 	defer s.release(ctx, later)
 	for _, resource := range []string{s.cfg.Resource.Audience, later.Audiences[0]} {
-		refreshed, err := s.exchange(ctx, client, url.Values{
-			"grant_type": {"refresh_token"}, "refresh_token": {latest}, "resource": {resource},
-		})
+		refreshed, err := s.refresh(ctx, client, latest, resource)
 		if err != nil {
 			return fmt.Errorf("refresh for %s: %w", resource, err)
 		}
@@ -266,12 +260,11 @@ func (s *suite) checkSignOut(ctx context.Context) error {
 // [OpenID Connect RP-Initiated Logout 1.0 §2]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // [OpenID Connect RP-Initiated Logout 1.0 §3]: https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
-	issued, err := s.browserToken(ctx)
+	issued, err := s.browserToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {s.cfg.Resource.Audience}}
-	refreshed, err := s.exchange(ctx, s.browserClient(), refresh)
+	refreshed, err := s.refresh(ctx, s.browserClient(), issued.RefreshToken, s.cfg.Resource.Audience)
 	if err != nil {
 		return fmt.Errorf("refresh before sign-out: %w", err)
 	}
@@ -285,8 +278,7 @@ func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
 	if err := s.wantInactive(ctx, refreshed.AccessToken, "of a signed-out session"); err != nil {
 		return err
 	}
-	refresh.Set("refresh_token", cmp.Or(refreshed.RefreshToken, issued.RefreshToken))
-	_, err = s.exchange(ctx, s.browserClient(), refresh)
+	_, err = s.refresh(ctx, s.browserClient(), cmp.Or(refreshed.RefreshToken, issued.RefreshToken), s.cfg.Resource.Audience)
 	return wantRefused("refresh after sign-out", err, "invalid_grant")
 }
 
@@ -326,7 +318,7 @@ func (s *suite) checkIssuedScope(ctx context.Context) error {
 		if named != nil {
 			want = named[:1]
 		}
-		issued, err := s.browserToken(ctx, named...)
+		issued, err := s.browserToken(ctx, SignInRequest{}, named...)
 		if err != nil {
 			return err
 		}
