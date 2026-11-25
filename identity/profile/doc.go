@@ -44,8 +44,8 @@
 //     session without asking the user, [OpenID Connect RP-Initiated Logout 1.0 §2]: the session's access token
 //     goes inactive and its refresh token is refused with invalid_grant. With no hint the provider asks the user
 //     to confirm before it ends a browser's session. The browser client has {origin}/?signedOut=1 registered as a
-//     post-logout redirect URI for the base, admin and dev origins, and the provider redirects there after
-//     logout, [OpenID Connect RP-Initiated Logout 1.0 §3].
+//     post-logout redirect URI for the base and console origins, and the provider redirects there after logout,
+//     [OpenID Connect RP-Initiated Logout 1.0 §3].
 //   - Deactivation. When a person is set inactive through SCIM, the active attribute of [RFC 7643 §4.1.1], or is
 //     deleted, [RFC 7644 §3.6], every access token they hold is inactive at introspection and every refresh token,
 //     offline ones included, is refused with invalid_grant, [RFC 6749 §5.2], by the time the SCIM request returns.
