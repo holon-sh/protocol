@@ -100,6 +100,7 @@ var rules = []rule{
 	{name: "issued scope is what the grant named, or by default all, of what the subject holds on the resource, reported in the scope parameter and at introspection", browser: true, check: (*suite).checkIssuedScope},
 	{name: "sign-out with id_token_hint ends the session and redirects to the signed-out page", browser: true, check: (*suite).checkSignOut},
 	{name: "SCIM id is the sub at the browser client, and GET /Users/{sub} lists the person's groups", browser: true, check: (*suite).checkSCIMIDIsSubject},
+	{name: "SCIM deactivation or delete ends every token the person holds, and reactivation restores none", browser: true, check: (*suite).checkSCIMDeactivation},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},
 	{name: "invitation link expires and is refused after setup", browser: true, check: (*suite).checkInvitationLink},
 }

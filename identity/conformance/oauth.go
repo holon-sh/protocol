@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -164,6 +165,10 @@ func (s *suite) exchange(ctx context.Context, client oauthClient, form url.Value
 	return issued, nil
 }
 
+func (s *suite) cliClient() oauthClient {
+	return oauthClient{id: s.cfg.CLIClientID}
+}
+
 func (s *suite) browserClient() oauthClient {
 	return oauthClient{id: s.cfg.BrowserClientID, secret: s.cfg.BrowserClientSecret}
 }
@@ -245,12 +250,44 @@ func (s *suite) redeem(ctx context.Context, issued grant) (token, error) {
 	})
 }
 
-func (s *suite) browserToken(ctx context.Context, named ...string) (token, error) {
-	issued, err := s.authorize(ctx, SignInRequest{}, named...)
+func (s *suite) browserToken(ctx context.Context, person SignInRequest, named ...string) (token, error) {
+	issued, err := s.authorize(ctx, person, named...)
 	if err != nil {
 		return token{}, err
 	}
 	return s.redeem(ctx, issued)
+}
+
+// refresh is the request of [RFC 6749 §6] for resource. Its answer holds the refresh token to use next, which is the
+// one sent when the issuer issues none.
+//
+// [RFC 6749 §6]: https://www.rfc-editor.org/rfc/rfc6749.html#section-6
+func (s *suite) refresh(ctx context.Context, client oauthClient, refreshToken, resource string) (token, error) {
+	refreshed, err := s.exchange(ctx, client, url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refreshToken}, "resource": {resource}})
+	refreshed.RefreshToken = cmp.Or(refreshed.RefreshToken, refreshToken)
+	return refreshed, err
+}
+
+type session struct {
+	client oauthClient
+	latest token
+}
+
+// wantEnded expects each session's access token inactive and its refresh token refused with the invalid_grant of
+// [RFC 6749 §5.2].
+//
+// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
+func (s *suite) wantEnded(ctx context.Context, sessions []session, description string) error {
+	for _, held := range sessions {
+		if err := s.wantInactive(ctx, held.latest.AccessToken, "from the "+held.client.id+" sign-in "+description); err != nil {
+			return err
+		}
+		_, err := s.refresh(ctx, held.client, held.latest.RefreshToken, s.cfg.Resource.Audience)
+		if err := wantRefused("the "+held.client.id+" refresh token "+description, err, "invalid_grant"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *suite) wantActive(ctx context.Context, value, clientID, audience string) (introspection.Result, error) {

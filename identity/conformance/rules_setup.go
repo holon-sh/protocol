@@ -65,17 +65,16 @@ func validateResult(result invitation.Result, capabilities scim.Capabilities, li
 }
 
 func (s *suite) checkTemporaryPassword(ctx context.Context) error {
-	password := temporaryPassword()
-	person, err := s.createPerson(ctx, password)
+	person, signIn, err := s.createSignIn(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.deleteUser(ctx, person.ID)
-	signIn := SignInRequest{UserName: person.UserName, Password: password, NewPassword: password, Name: &personName}
-	if _, err := s.authorize(ctx, signIn); err == nil {
+	reused := signIn
+	reused.NewPassword = signIn.Password
+	if _, err := s.authorize(ctx, reused); err == nil {
 		return errors.New("the issuer accepted the temporary password as the new one")
 	}
-	signIn.NewPassword = temporaryPassword()
 	if _, err := s.authorize(ctx, signIn); err != nil {
 		return fmt.Errorf("first sign-in with a new password: %w", err)
 	}

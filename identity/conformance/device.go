@@ -43,12 +43,12 @@ func (d deviceAuthorization) validate() error {
 	return nil
 }
 
-// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client, naming no resource,
-// with offline_access, which must yield a refresh token.
+// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client for person, naming no
+// resource, with offline_access, which must yield a refresh token.
 //
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
-func (s *suite) deviceToken(ctx context.Context) (token, error) {
-	client := oauthClient{id: s.cfg.CLIClientID}
+func (s *suite) deviceToken(ctx context.Context, person SignInRequest) (token, error) {
+	client := s.cliClient()
 	document, err := s.discover(ctx)
 	if err != nil {
 		return token{}, err
@@ -66,8 +66,8 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	if err := wantRefused("a poll before sign-in", err, "authorization_pending"); err != nil {
 		return token{}, err
 	}
-	signIn := SignInRequest{AuthorizationURL: cmp.Or(device.VerificationURIComplete, device.VerificationURI), UserCode: device.UserCode}
-	if _, err := s.cfg.SignIn(ctx, signIn); err != nil {
+	person.AuthorizationURL, person.UserCode = cmp.Or(device.VerificationURIComplete, device.VerificationURI), device.UserCode
+	if _, err := s.cfg.SignIn(ctx, person); err != nil {
 		return token{}, fmt.Errorf("sign-in: %w", err)
 	}
 	issued, err := s.pollDevice(ctx, client, device, poll)
@@ -89,18 +89,17 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 func (s *suite) checkCLIClient(ctx context.Context) error {
-	client := oauthClient{id: s.cfg.CLIClientID}
+	client := s.cliClient()
 	resource := s.cfg.Resource.Audience
 	document, err := s.discover(ctx)
 	if err != nil {
 		return err
 	}
-	issued, err := s.deviceToken(ctx)
+	issued, err := s.deviceToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
-	refresh := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "resource": {resource}}
-	refreshed, err := s.exchange(ctx, client, refresh)
+	refreshed, err := s.refresh(ctx, client, issued.RefreshToken, resource)
 	if err != nil {
 		return fmt.Errorf("refresh before revocation: %w", err)
 	}
@@ -108,7 +107,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	signedIn, err := s.browserToken(ctx)
+	signedIn, err := s.browserToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
@@ -119,13 +118,11 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if browser.Subject != cli.Subject {
 		return fmt.Errorf("one person has sub %q at the cli client and %q at the browser client", cli.Subject, browser.Subject)
 	}
-	latest := cmp.Or(refreshed.RefreshToken, issued.RefreshToken)
-	revocation := url.Values{"token": {latest}, "token_type_hint": {"refresh_token"}}
+	revocation := url.Values{"token": {refreshed.RefreshToken}, "token_type_hint": {"refresh_token"}}
 	if err := s.post(ctx, document.RevocationEndpoint, client, revocation, nil); err != nil {
 		return fmt.Errorf("revocation request: %w", err)
 	}
-	refresh.Set("refresh_token", latest)
-	_, err = s.exchange(ctx, client, refresh)
+	_, err = s.refresh(ctx, client, refreshed.RefreshToken, resource)
 	return wantRefused("a revoked refresh token", err, "invalid_grant")
 }
 
