@@ -18,6 +18,13 @@ type InputName = string
 // +kubebuilder:validation:Pattern="^v-[0-9a-f]{24}$"
 type ConfigRevision = string
 
+// Reach is how far the calls an app makes for a person go.
+// +kubebuilder:validation:Enum=person
+type Reach string
+
+// ReachPerson asks each person to let the app act as them on any app they can use, in place of the apps it requires.
+const ReachPerson Reach = "person"
+
 // +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.source)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and source, and a port only with an image"
 // +kubebuilder:validation:XValidation:rule="!has(self.oauth) || !has(self.remote) || !has(self.remote.registration)",message="an app signs in with its own OAuth client or a registration, not both"
 type App struct {
@@ -66,6 +73,10 @@ type App struct {
 	// +kubebuilder:validation:items:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
 	// +optional
 	MayAct []string `json:"mayAct,omitempty"`
+	// Reach is how far the calls this app makes for a person go: empty, the apps it requires; ReachPerson, any app the
+	// person can use.
+	// +optional
+	Reach Reach `json:"reach,omitempty"`
 	// +optional
 	Egress Egress `json:"egress,omitzero"`
 	// +kubebuilder:validation:MaxProperties=64
