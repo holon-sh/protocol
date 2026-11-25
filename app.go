@@ -25,30 +25,11 @@ type Reach string
 // ReachPerson asks each person to let the app act as them on any app they can use, in place of the apps it requires.
 const ReachPerson Reach = "person"
 
-// +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.source)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and source, and a port only with an image"
-// +kubebuilder:validation:XValidation:rule="!has(self.oauth) || !has(self.remote) || !has(self.remote.registration)",message="an app signs in with its own OAuth client or a registration, not both"
-type App struct {
+type BuildRuntime struct {
 	// +optional
 	Icons []Icon `json:"icons,omitempty"`
-
-	// +kubebuilder:validation:MaxLength=2048
 	// +optional
-	Mount string `json:"mount,omitempty"`
-
-	// +optional
-	Release *Release `json:"release,omitempty"`
-	// +optional
-	OAuth *OAuthClient `json:"oauth,omitempty"`
-	// +optional
-	Remote *Remote    `json:"remote,omitempty"`
-	Access *AppAccess `json:"access"`
-	// +kubebuilder:validation:MaxLength=49
-	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
-	Name string `json:"name"`
-	// +kubebuilder:validation:MaxLength=2048
-	// +kubebuilder:validation:Pattern="@sha256:[0-9a-f]{64}$"
-	// +optional
-	Image string `json:"image,omitempty"`
+	Remote *Remote `json:"remote,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
@@ -88,6 +69,28 @@ type App struct {
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	EnvTemplates map[string]Template `json:"envTemplates,omitempty"`
+}
+
+// +kubebuilder:validation:XValidation:rule="[has(self.image), has(self.remote), has(self.source)].exists_one(x, x) && has(self.port) == has(self.image)",message="an app has exactly one of image, remote and source, and a port only with an image"
+// +kubebuilder:validation:XValidation:rule="!has(self.oauth) || !has(self.remote) || !has(self.remote.registration)",message="an app signs in with its own OAuth client or a registration, not both"
+type App struct {
+	BuildRuntime `json:",inline"`
+
+	// +kubebuilder:validation:MaxLength=2048
+	// +optional
+	Mount string `json:"mount,omitempty"`
+	// +optional
+	Release *Release `json:"release,omitempty"`
+	// +optional
+	OAuth  *OAuthClient `json:"oauth,omitempty"`
+	Access *AppAccess   `json:"access"`
+	// +kubebuilder:validation:MaxLength=49
+	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	Name string `json:"name"`
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern="@sha256:[0-9a-f]{64}$"
+	// +optional
+	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:MaxProperties=64
 	// +optional
 	Applied map[string]ConfigRevision `json:"applied,omitempty"`
