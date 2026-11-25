@@ -43,11 +43,11 @@ func (d deviceAuthorization) validate() error {
 	return nil
 }
 
-// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client, naming no resource,
-// with offline_access, which must yield a refresh token.
+// deviceToken drives the device authorization grant of [RFC 8628 §3] as the public cli client for person, naming no
+// resource, with offline_access, which must yield a refresh token.
 //
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
-func (s *suite) deviceToken(ctx context.Context) (token, error) {
+func (s *suite) deviceToken(ctx context.Context, person SignInRequest) (token, error) {
 	client := oauthClient{id: s.cfg.CLIClientID}
 	document, err := s.discover(ctx)
 	if err != nil {
@@ -66,7 +66,8 @@ func (s *suite) deviceToken(ctx context.Context) (token, error) {
 	if err := wantRefused("a poll before sign-in", err, "authorization_pending"); err != nil {
 		return token{}, err
 	}
-	signIn := SignInRequest{AuthorizationURL: cmp.Or(device.VerificationURIComplete, device.VerificationURI), UserCode: device.UserCode}
+	signIn := person
+	signIn.AuthorizationURL, signIn.UserCode = cmp.Or(device.VerificationURIComplete, device.VerificationURI), device.UserCode
 	if _, err := s.cfg.SignIn(ctx, signIn); err != nil {
 		return token{}, fmt.Errorf("sign-in: %w", err)
 	}
@@ -95,7 +96,7 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	issued, err := s.deviceToken(ctx)
+	issued, err := s.deviceToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}

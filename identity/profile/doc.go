@@ -46,6 +46,11 @@
 //     to confirm before it ends a browser's session. The browser client has {origin}/?signedOut=1 registered as a
 //     post-logout redirect URI for the base, admin and dev origins, and the provider redirects there after
 //     logout, [OpenID Connect RP-Initiated Logout 1.0 §3].
+//   - Deactivation. When a person is set inactive through SCIM, the active attribute of [RFC 7643 §4.1.1], or is
+//     deleted, [RFC 7644 §3.6], every access token they hold is inactive at introspection and every refresh token,
+//     offline ones included, is refused with invalid_grant, [RFC 6749 §5.2], by the time the SCIM request returns.
+//     Setting the person active again restores none of them: a client the person approved asks for approval again,
+//     and a new sign-in works.
 //   - Discovery. {issuer}/.well-known/openid-configuration serves [OpenID Connect Discovery 1.0 §4]. Holon reads
 //     the authorization, device, token, revocation and end-session endpoints from it and nowhere else.
 //
@@ -58,6 +63,7 @@
 // [RFC 7636 §4.2]: https://www.rfc-editor.org/rfc/rfc7636.html#section-4.2
 // [RFC 7643 §3.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-3.1
 // [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1
+// [RFC 7644 §3.6]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.6
 // [RFC 7662 §2.1]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.1
 // [RFC 7662 §2.2]: https://www.rfc-editor.org/rfc/rfc7662.html#section-2.2
 // [RFC 8414 §2]: https://www.rfc-editor.org/rfc/rfc8414.html#section-2

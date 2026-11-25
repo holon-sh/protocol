@@ -62,6 +62,8 @@ type faults struct {
 	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
 	noPendingSetup, duplicateUserName, deleteKeeps       bool
+	disableOnly, deactivationKeepsOffline                bool
+	reactivationIgnored, deleteKeepsTokens               bool
 	patchIgnored, membersIgnored                         bool
 	noMail, sentWithoutCapability, inviteNewUserEachTime bool
 	inviteDropsGroups                                    bool
@@ -308,7 +310,7 @@ func (p *provider) redeemCode(w http.ResponseWriter, client, resource string, fo
 
 func (p *provider) refresh(w http.ResponseWriter, client, resource, value string) {
 	previous, ok := p.refreshes[value]
-	if !ok || previous.client != client || p.faults.refreshRefused {
+	if !ok || previous.client != client || p.faults.refreshRefused || p.inactive(previous.subject) {
 		refuse(w, "invalid_grant")
 		return
 	}
@@ -422,10 +424,10 @@ func (p *provider) pollDevice(w http.ResponseWriter, resource, code string) {
 	}
 }
 
-func (p *provider) approveDevice(request SignInRequest) error {
+func (p *provider) approveDevice(userCode, subject string) error {
 	for _, device := range p.devices {
-		if device.userCode == request.UserCode {
-			device.approved = true
+		if device.userCode == userCode {
+			device.approved, device.subject = true, subject
 			return nil
 		}
 	}
@@ -443,7 +445,7 @@ func (p *provider) introspect(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	token, known := p.tokens[r.PostForm.Get("token")]
 	generation, registered := p.generations[token.audience]
-	active := known && (p.faults.activeAfterDelete || (registered && generation == token.generation))
+	active := known && !p.inactive(token.subject) && (p.faults.activeAfterDelete || (registered && generation == token.generation))
 	if !known && p.faults.activeUnknownToken {
 		token, active = record{client: serviceClient, subject: "service", audience: testResource}, true
 	}
@@ -497,24 +499,12 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 	if request.Invitation {
 		return &url.URL{}, p.followLink(request)
 	}
-	if strings.HasPrefix(request.AuthorizationURL, p.issuer.URL+"/verify") {
-		return nil, p.approveDevice(request)
+	subject, err := p.authenticate(request)
+	if err != nil {
+		return nil, err
 	}
-	subject := callerPerson
-	if request.UserName != "" {
-		user := p.byName(request.UserName)
-		if user == nil || user.Password != request.Password {
-			return nil, errors.New("wrong credentials")
-		}
-		if user.Holon.PendingSetup {
-			if err := p.finishSetup(user, request); err != nil {
-				return nil, err
-			}
-		}
-		subject = user.ID
-		if p.faults.subjectNotUserID {
-			subject = "subject-" + user.ID
-		}
+	if strings.HasPrefix(request.AuthorizationURL, p.issuer.URL+"/verify") {
+		return nil, p.approveDevice(request.UserCode, subject)
 	}
 	authorization, _ := url.Parse(request.AuthorizationURL)
 	query := authorization.Query()
@@ -534,6 +524,38 @@ func (p *provider) signIn(_ context.Context, request SignInRequest) (*url.URL, e
 	redirect, _ := url.Parse(query.Get("redirect_uri"))
 	redirect.RawQuery = url.Values{"code": {code}, "state": {query.Get("state")}}.Encode()
 	return redirect, nil
+}
+
+func (p *provider) authenticate(request SignInRequest) (string, error) {
+	if request.UserName == "" {
+		return callerPerson, nil
+	}
+	user := p.byName(request.UserName)
+	if user == nil || user.Password != request.Password || !user.Active {
+		return "", errors.New("wrong credentials")
+	}
+	if user.Holon.PendingSetup {
+		if err := p.finishSetup(user, request); err != nil {
+			return "", err
+		}
+	}
+	if p.faults.subjectNotUserID {
+		return "subject-" + user.ID, nil
+	}
+	return user.ID, nil
+}
+
+func (p *provider) inactive(subject string) bool {
+	user, known := p.users[subject]
+	return known && !user.Active
+}
+
+func (p *provider) end(subject string) {
+	held := func(_ string, r record) bool { return r.subject == subject }
+	maps.DeleteFunc(p.tokens, held)
+	maps.DeleteFunc(p.refreshes, func(value string, r record) bool {
+		return held(value, r) && !(p.faults.deactivationKeepsOffline && r.client == cliClient)
+	})
 }
 
 func (p *provider) finishSetup(user *scim.User, request SignInRequest) error {
@@ -658,7 +680,9 @@ func (p *provider) PatchUser(_ context.Context, id string, patch scim.Patch) (sc
 	for _, operation := range patch.Operations {
 		switch operation.Path {
 		case "active":
-			_ = json.Unmarshal(operation.Value, &user.Active)
+			var active bool
+			_ = json.Unmarshal(operation.Value, &active)
+			p.setActive(user, active)
 		case "name":
 			_ = json.Unmarshal(operation.Value, &user.Name)
 		case "password":
@@ -671,6 +695,19 @@ func (p *provider) PatchUser(_ context.Context, id string, patch scim.Patch) (sc
 	return p.view(user), nil
 }
 
+func (p *provider) setActive(user *scim.User, active bool) {
+	switch {
+	case active && p.faults.reactivationIgnored:
+	case active:
+		user.Active = true
+	case p.faults.disableOnly:
+		user.Active = false
+	default:
+		user.Active = false
+		p.end(user.ID)
+	}
+}
+
 func (p *provider) DeleteUser(_ context.Context, id string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -679,6 +716,9 @@ func (p *provider) DeleteUser(_ context.Context, id string) error {
 	}
 	if !p.faults.deleteKeeps {
 		delete(p.users, id)
+	}
+	if !p.faults.deleteKeepsTokens {
+		p.end(id)
 	}
 	return nil
 }

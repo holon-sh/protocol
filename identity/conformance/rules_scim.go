@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -303,15 +304,12 @@ func (s *suite) checkSCIMPatch(ctx context.Context) error {
 }
 
 func (s *suite) checkSCIMIDIsSubject(ctx context.Context) error {
-	password := temporaryPassword()
-	person, err := s.createPerson(ctx, password)
+	person, firstSignIn, err := s.createSignIn(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.deleteUser(ctx, person.ID)
-	signIn, err := s.authorize(ctx, SignInRequest{
-		UserName: person.UserName, Password: password, NewPassword: temporaryPassword(), Name: &personName,
-	})
+	signIn, err := s.authorize(ctx, firstSignIn)
 	if err != nil {
 		return err
 	}
@@ -352,17 +350,139 @@ func (s *suite) wantMembership(ctx context.Context, userID, groupID string, want
 	return nil
 }
 
-func (s *suite) checkSCIMDelete(ctx context.Context) error {
-	person, err := s.createPerson(ctx, temporaryPassword())
+// createSignIn creates a person with a temporary password and answers the request for their first sign-in, which
+// replaces the password with NewPassword.
+func (s *suite) createSignIn(ctx context.Context) (scim.User, SignInRequest, error) {
+	password := temporaryPassword()
+	person, err := s.createPerson(ctx, password)
+	return person, SignInRequest{UserName: person.UserName, Password: password, NewPassword: temporaryPassword(), Name: &personName}, err
+}
+
+// session is a person's sign-in at one client and the latest tokens it holds.
+type session struct {
+	name   string
+	client oauthClient
+	latest token
+}
+
+// holdSessions signs firstSignIn's person in at the browser client and then at the cli client, whose device grant
+// with offline_access holds an offline refresh token, and refreshes each grant for the resource so that a refusal
+// below can only come from what follows. Their latest tokens are issued just before it, the case a refusal by
+// issued-at time in whole seconds lets through.
+func (s *suite) holdSessions(ctx context.Context, firstSignIn SignInRequest) ([]session, error) {
+	signIn, err := s.authorize(ctx, firstSignIn)
+	if err != nil {
+		return nil, err
+	}
+	browser, err := s.redeem(ctx, signIn)
+	if err != nil {
+		return nil, err
+	}
+	cli, err := s.deviceToken(ctx, SignInRequest{UserName: firstSignIn.UserName, Password: firstSignIn.NewPassword})
+	if err != nil {
+		return nil, err
+	}
+	sessions := []session{
+		{name: "online", client: s.browserClient(), latest: browser},
+		{name: "offline", client: oauthClient{id: s.cfg.CLIClientID}, latest: cli},
+	}
+	for i, held := range sessions {
+		refreshed, err := s.refreshFor(ctx, held)
+		if err != nil {
+			return nil, fmt.Errorf("refresh of the %s sign-in: %w", held.name, err)
+		}
+		if _, err := s.wantActive(ctx, refreshed.AccessToken, held.client.id, s.cfg.Resource.Audience); err != nil {
+			return nil, fmt.Errorf("access token of the %s sign-in: %w", held.name, err)
+		}
+		sessions[i].latest = token{AccessToken: refreshed.AccessToken, RefreshToken: cmp.Or(refreshed.RefreshToken, held.latest.RefreshToken)}
+	}
+	return sessions, nil
+}
+
+func (s *suite) refreshFor(ctx context.Context, held session) (token, error) {
+	return s.exchange(ctx, held.client, url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {held.latest.RefreshToken}, "resource": {s.cfg.Resource.Audience},
+	})
+}
+
+// wantEnded expects each session's access token inactive and its refresh token refused with the invalid_grant of
+// [RFC 6749 §5.2].
+//
+// [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
+func (s *suite) wantEnded(ctx context.Context, sessions []session, description string) error {
+	for _, held := range sessions {
+		if err := s.wantInactive(ctx, held.latest.AccessToken, "from the "+held.name+" sign-in "+description); err != nil {
+			return err
+		}
+		_, err := s.refreshFor(ctx, held)
+		if err := wantRefused("the "+held.name+" refresh token "+description, err, "invalid_grant"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkSCIMDeactivation sets a person inactive, the active attribute of [RFC 7643 §4.1.1], right after their sign-ins
+// at both clients and expects every token they hold ended. It then sets them active again and expects the same tokens
+// still ended and a new sign-in to work.
+//
+// [RFC 7643 §4.1.1]: https://www.rfc-editor.org/rfc/rfc7643.html#section-4.1.1
+func (s *suite) checkSCIMDeactivation(ctx context.Context) error {
+	person, firstSignIn, err := s.createSignIn(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.deleteUser(ctx, person.ID)
+	sessions, err := s.holdSessions(ctx, firstSignIn)
+	if err != nil {
+		return err
+	}
+	if _, err := s.users.PatchUser(ctx, person.ID, replaceOperation("active", false)); err != nil {
+		return fmt.Errorf("replace active with false: %w", err)
+	}
+	if err := s.wantEnded(ctx, sessions, "of a deactivated person"); err != nil {
+		return err
+	}
+	if _, err := s.users.PatchUser(ctx, person.ID, replaceOperation("active", true)); err != nil {
+		return fmt.Errorf("replace active with true: %w", err)
+	}
+	if err := s.wantEnded(ctx, sessions, "of a reactivated person"); err != nil {
+		return err
+	}
+	signIn, err := s.authorize(ctx, SignInRequest{UserName: person.UserName, Password: firstSignIn.NewPassword})
+	if err != nil {
+		return fmt.Errorf("sign-in after reactivation: %w", err)
+	}
+	issued, err := s.redeem(ctx, signIn)
+	if err != nil {
+		return fmt.Errorf("sign-in after reactivation: %w", err)
+	}
+	_, err = s.wantActive(ctx, issued.AccessToken, s.cfg.BrowserClientID, s.cfg.Resource.Audience)
+	return err
+}
+
+// checkSCIMDelete deletes a person, [RFC 7644 §3.6], right after their sign-ins at both clients and expects the person
+// gone and every token they hold ended.
+//
+// [RFC 7644 §3.6]: https://www.rfc-editor.org/rfc/rfc7644.html#section-3.6
+func (s *suite) checkSCIMDelete(ctx context.Context) error {
+	person, firstSignIn, err := s.createSignIn(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.deleteUser(ctx, person.ID)
+	sessions, err := s.holdSessions(ctx, firstSignIn)
+	if err != nil {
+		return err
+	}
 	if err := s.users.DeleteUser(ctx, person.ID); err != nil {
 		return fmt.Errorf("delete: %w", err)
 	}
 	_, err = s.users.GetUser(ctx, person.ID)
 	if err := wantError("get after delete", err, scim.ErrNotFound); err != nil {
+		return err
+	}
+	if err := s.wantEnded(ctx, sessions, "of a deleted person"); err != nil {
 		return err
 	}
 	return wantError("second delete", s.users.DeleteUser(ctx, person.ID), scim.ErrNotFound)

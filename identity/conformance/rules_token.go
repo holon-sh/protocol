@@ -170,7 +170,7 @@ func (s *suite) checkRefreshResource(ctx context.Context) error {
 	if err := s.wantRefreshesKeepResource(ctx, s.browserClient(), browser.RefreshToken); err != nil {
 		return fmt.Errorf("browser client: %w", err)
 	}
-	cli, err := s.deviceToken(ctx)
+	cli, err := s.deviceToken(ctx, SignInRequest{})
 	if err != nil {
 		return err
 	}
