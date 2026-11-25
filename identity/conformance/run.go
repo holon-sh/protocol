@@ -92,6 +92,7 @@ var rules = []rule{
 	{name: "SCIM create with password", check: (*suite).checkSCIMCreate},
 	{name: "SCIM create group", check: (*suite).checkSCIMCreateGroup},
 	{name: "SCIM patch", check: (*suite).checkSCIMPatch},
+	{name: "SCIM delete", check: (*suite).checkSCIMDelete},
 	{name: "invitation returns a result", check: (*suite).checkInvitation},
 	{name: "browser client uses the authorization code grant with PKCE S256", browser: true, check: (*suite).checkBrowserClient},
 	{name: "cli client is public, uses the device authorization grant with offline_access and revokes its refresh token", browser: true, check: (*suite).checkCLIClient},
@@ -99,8 +100,7 @@ var rules = []rule{
 	{name: "issued scope is what the grant named, or by default all, of what the subject holds on the resource, reported in the scope parameter and at introspection", browser: true, check: (*suite).checkIssuedScope},
 	{name: "sign-out with id_token_hint ends the session and redirects to the signed-out page", browser: true, check: (*suite).checkSignOut},
 	{name: "SCIM id is the sub at the browser client, and GET /Users/{sub} lists the person's groups", browser: true, check: (*suite).checkSCIMIDIsSubject},
-	{name: "SCIM deactivation ends every token the person holds, reactivation restores none, and a new sign-in works", browser: true, check: (*suite).checkSCIMDeactivation},
-	{name: "SCIM delete removes the person and ends every token they held", browser: true, check: (*suite).checkSCIMDelete},
+	{name: "SCIM deactivation or delete ends every token the person holds, and reactivation restores none", browser: true, check: (*suite).checkSCIMDeactivation},
 	{name: "temporary password is replaced at the first sign-in", browser: true, check: (*suite).checkTemporaryPassword},
 	{name: "invitation link expires and is refused after setup", browser: true, check: (*suite).checkInvitationLink},
 }

@@ -62,7 +62,7 @@ type faults struct {
 	noResourceDefaults                                   bool
 	filterIgnored, countIgnored, zeroCountReturnsAll     bool
 	noPendingSetup, duplicateUserName, deleteKeeps       bool
-	disableOnly, deactivationKeepsOffline                bool
+	disableOnly, keepsOffline                            bool
 	reactivationIgnored, deleteKeepsTokens               bool
 	patchIgnored, membersIgnored                         bool
 	noMail, sentWithoutCapability, inviteNewUserEachTime bool
@@ -380,7 +380,7 @@ func (p *provider) deviceAuthorize(w http.ResponseWriter, r *http.Request) {
 	code, userCode := p.id("device-"), p.id("user-code-")
 	p.devices[code] = &deviceRecord{
 		record: record{
-			client: cliClient, subject: callerPerson, audience: audience, scope: scope,
+			client: cliClient, audience: audience, scope: scope,
 			generation: p.generations[audience],
 		},
 		userCode: userCode, interval: deviceInterval,
@@ -554,7 +554,7 @@ func (p *provider) end(subject string) {
 	held := func(_ string, r record) bool { return r.subject == subject }
 	maps.DeleteFunc(p.tokens, held)
 	maps.DeleteFunc(p.refreshes, func(value string, r record) bool {
-		return held(value, r) && !(p.faults.deactivationKeepsOffline && r.client == cliClient)
+		return held(value, r) && !(p.faults.keepsOffline && r.client == cliClient)
 	})
 }
 

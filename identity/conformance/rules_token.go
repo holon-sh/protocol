@@ -1,7 +1,6 @@
 package conformance
 
 import (
-	"cmp"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -174,7 +173,7 @@ func (s *suite) checkRefreshResource(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.wantRefreshesAnyResource(ctx, oauthClient{id: s.cfg.CLIClientID}, cli.RefreshToken); err != nil {
+	if err := s.wantRefreshesAnyResource(ctx, s.cliClient(), cli.RefreshToken); err != nil {
 		return fmt.Errorf("cli client: %w", err)
 	}
 	return nil
@@ -200,7 +199,7 @@ func (s *suite) wantRefreshesKeepResource(ctx context.Context, client oauthClien
 		if _, err := s.wantActive(ctx, refreshed.AccessToken, client.id, resource); err != nil {
 			return fmt.Errorf("access token of refresh %d: %w", attempt+1, err)
 		}
-		latest = cmp.Or(refreshed.RefreshToken, latest)
+		latest = refreshed.RefreshToken
 	}
 	other := throwawaySpec()
 	if err := s.registrations.Ensure(ctx, other); err != nil {
@@ -229,7 +228,7 @@ func (s *suite) wantRefreshesAnyResource(ctx context.Context, client oauthClient
 		if _, err := s.wantActive(ctx, refreshed.AccessToken, client.id, resource); err != nil {
 			return fmt.Errorf("access token for %s: %w", resource, err)
 		}
-		latest = cmp.Or(refreshed.RefreshToken, latest)
+		latest = refreshed.RefreshToken
 	}
 	return nil
 }
@@ -275,11 +274,7 @@ func (s *suite) wantSignOut(ctx context.Context, signedOut string) error {
 	if location != signedOut {
 		return fmt.Errorf("sign-out answered status %d and location %q, want a redirect to %q", status, location, signedOut)
 	}
-	if err := s.wantInactive(ctx, refreshed.AccessToken, "of a signed-out session"); err != nil {
-		return err
-	}
-	_, err = s.refresh(ctx, s.browserClient(), cmp.Or(refreshed.RefreshToken, issued.RefreshToken), s.cfg.Resource.Audience)
-	return wantRefused("refresh after sign-out", err, "invalid_grant")
+	return s.wantEnded(ctx, []session{{s.browserClient(), refreshed}}, "after sign-out")
 }
 
 func (s *suite) endSession(ctx context.Context, hint, redirectURI string) (int, string, error) {

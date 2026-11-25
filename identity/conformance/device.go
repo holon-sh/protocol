@@ -48,7 +48,7 @@ func (d deviceAuthorization) validate() error {
 //
 // [RFC 8628 §3]: https://www.rfc-editor.org/rfc/rfc8628.html#section-3
 func (s *suite) deviceToken(ctx context.Context, person SignInRequest) (token, error) {
-	client := oauthClient{id: s.cfg.CLIClientID}
+	client := s.cliClient()
 	document, err := s.discover(ctx)
 	if err != nil {
 		return token{}, err
@@ -66,9 +66,8 @@ func (s *suite) deviceToken(ctx context.Context, person SignInRequest) (token, e
 	if err := wantRefused("a poll before sign-in", err, "authorization_pending"); err != nil {
 		return token{}, err
 	}
-	signIn := person
-	signIn.AuthorizationURL, signIn.UserCode = cmp.Or(device.VerificationURIComplete, device.VerificationURI), device.UserCode
-	if _, err := s.cfg.SignIn(ctx, signIn); err != nil {
+	person.AuthorizationURL, person.UserCode = cmp.Or(device.VerificationURIComplete, device.VerificationURI), device.UserCode
+	if _, err := s.cfg.SignIn(ctx, person); err != nil {
 		return token{}, fmt.Errorf("sign-in: %w", err)
 	}
 	issued, err := s.pollDevice(ctx, client, device, poll)
@@ -90,7 +89,7 @@ func (s *suite) deviceToken(ctx context.Context, person SignInRequest) (token, e
 // [RFC 6749 §5.2]: https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2
 // [RFC 7009 §2.1]: https://www.rfc-editor.org/rfc/rfc7009.html#section-2.1
 func (s *suite) checkCLIClient(ctx context.Context) error {
-	client := oauthClient{id: s.cfg.CLIClientID}
+	client := s.cliClient()
 	resource := s.cfg.Resource.Audience
 	document, err := s.discover(ctx)
 	if err != nil {
@@ -119,12 +118,11 @@ func (s *suite) checkCLIClient(ctx context.Context) error {
 	if browser.Subject != cli.Subject {
 		return fmt.Errorf("one person has sub %q at the cli client and %q at the browser client", cli.Subject, browser.Subject)
 	}
-	latest := cmp.Or(refreshed.RefreshToken, issued.RefreshToken)
-	revocation := url.Values{"token": {latest}, "token_type_hint": {"refresh_token"}}
+	revocation := url.Values{"token": {refreshed.RefreshToken}, "token_type_hint": {"refresh_token"}}
 	if err := s.post(ctx, document.RevocationEndpoint, client, revocation, nil); err != nil {
 		return fmt.Errorf("revocation request: %w", err)
 	}
-	_, err = s.refresh(ctx, client, latest, resource)
+	_, err = s.refresh(ctx, client, refreshed.RefreshToken, resource)
 	return wantRefused("a revoked refresh token", err, "invalid_grant")
 }
 
