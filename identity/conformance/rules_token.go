@@ -238,7 +238,7 @@ func (s *suite) checkSignOut(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, host := range []protocol.Host{protocol.BaseHost, protocol.AdminHost, protocol.DevHost} {
+	for _, host := range []protocol.Host{protocol.BaseHost, protocol.ConsoleHost} {
 		origin, err := protocol.HostOrigin(callback.Scheme+"://"+callback.Host, host, "")
 		if err != nil {
 			return err

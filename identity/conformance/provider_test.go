@@ -42,9 +42,8 @@ var (
 	testScopes     = []string{"app:read", "app:write"}
 	clientSecrets  = map[string]string{browserClient: browserSecret, serviceClient: serviceSecret, cliClient: ""}
 	signedOutPages = map[string]protocol.Host{
-		"https://holon.example.test/?signedOut=1":       protocol.BaseHost,
-		"https://admin.holon.example.test/?signedOut=1": protocol.AdminHost,
-		"https://dev.holon.example.test/?signedOut=1":   protocol.DevHost,
+		"https://holon.example.test/?signedOut=1":         protocol.BaseHost,
+		"https://console.holon.example.test/?signedOut=1": protocol.ConsoleHost,
 	}
 )
 
