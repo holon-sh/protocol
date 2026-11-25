@@ -5,18 +5,6 @@ import (
 	"fmt"
 )
 
-type BuildRuntime struct {
-	Icons        []Icon              `json:"icons,omitempty"`
-	Port         int32               `json:"port"`
-	Args         []Template          `json:"args,omitempty"`
-	Env          map[string]Input    `json:"env,omitempty"`
-	EnvTemplates map[string]Template `json:"envTemplates,omitempty"`
-	Requires     []string            `json:"requires,omitempty"`
-	Egress       Egress              `json:"egress,omitzero"`
-	// Remote is set by an OpenAPI import; such a build has no image.
-	Remote *Remote `json:"remote,omitempty"`
-}
-
 type BuildRecord struct {
 	SchemaVersion      int          `json:"schemaVersion"`
 	AppName            string       `json:"appName"`
